@@ -2947,3 +2947,31 @@ pre {
 .health-superseded {
   background: #b8bfb0;
 }
+
+/* Public browsing keeps owner actions out of the visitor interface. */
+.public-view [data-owner-control] {
+  display: none !important;
+}
+.public-access-banner {
+  padding: 12px 28px;
+  background: #edf3ef;
+  border-bottom: 1px solid #d6e1d9;
+  color: #355747;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.public-access-banner a {
+  color: #245e46;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: underline;
+}
+@media (max-width: 700px) {
+  .public-access-banner {
+    padding: 12px 16px;
+    align-items: flex-start;
+  }
+}

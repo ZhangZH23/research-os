@@ -58,6 +58,7 @@ export default function Graph({
   onSelect,
   onConnect,
   compact = false,
+  readOnly = false,
   assessments = noAssessments,
 }: {
   nodes: ResearchNode[];
@@ -65,6 +66,7 @@ export default function Graph({
   onSelect: (id: string) => void;
   onConnect: (c: Connection) => void;
   compact?: boolean;
+  readOnly?: boolean;
   assessments?: ContributionAssessment[];
 }) {
   const initial = useMemo(() => {
@@ -134,7 +136,7 @@ export default function Graph({
         fitViewOptions={{ padding: 0.18 }}
         minZoom={0.15}
         maxZoom={1.7}
-        nodesConnectable={!compact}
+        nodesConnectable={!compact && !readOnly}
         panOnScroll={false}
         proOptions={{ hideAttribution: false }}
       >

@@ -86,7 +86,7 @@ const countChanges = (proposal: ChatProposal) =>
   proposal.goals.length +
   proposal.assessments.length;
 
-function ConnectionDialog({
+export function ConnectionDialog({
   connection,
   onClose,
   onChange,
@@ -139,7 +139,7 @@ function ConnectionDialog({
         await api<ConnectionStatus>('/research-chat/connection', 'PUT', { disconnect: true }),
       );
       setKey('');
-      notify('Disconnected. Local research worksheets are still available.');
+      notify('Disconnected. Planning worksheets are still available.');
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -179,7 +179,8 @@ function ConnectionDialog({
           disabled={busy}
         />
         <p className="chat-connection-hint">
-          The key is held by this local server, never in browser storage or research history.
+          Your key is encrypted in a secure, server-only browser cookie. It is never written to
+          research history or exposed to page scripts.
         </p>
         <label htmlFor="chat-model">Model</label>
         <input
@@ -204,8 +205,8 @@ function ConnectionDialog({
             disabled={busy}
           />
           <span>
-            Remember on this computer. Saves the key in a local file restricted to your user
-            account. Otherwise it lasts until the server stops.
+            Remember in this browser for 30 days. Otherwise the encrypted connection lasts for this
+            browser session, up to 24 hours.
           </span>
         </label>
         {connection.configured && (
@@ -214,8 +215,8 @@ function ConnectionDialog({
             {connection.source === 'environment'
               ? 'server environment'
               : connection.persisted
-                ? 'saved locally'
-                : 'server memory'}
+                ? 'encrypted browser connection'
+                : 'encrypted session connection'}
             .
           </p>
         )}
@@ -702,7 +703,7 @@ export default function ResearchChat({
           onClick={() => setConnectionOpen(true)}
         >
           <span className="chat-status-dot" />
-          {connected ? `OpenAI · ${chat.connection.model}` : 'Local worksheet'}
+          {connected ? `OpenAI · ${chat.connection.model}` : 'Planning worksheet'}
           <Settings2 size={13} />
         </button>
       </div>
@@ -810,7 +811,7 @@ export default function ResearchChat({
                 context is truncated and disclosed on the response.{' '}
                 {connected
                   ? 'This context is sent to OpenAI when you send.'
-                  : 'Local worksheets keep this context on your computer.'}
+                  : 'Planning worksheets use your private workspace without sending context to OpenAI.'}
               </p>
             </details>
           </div>
@@ -875,9 +876,7 @@ export default function ResearchChat({
               </strong>
             </div>
             <small>
-              {connected
-                ? 'Proposals stay in review until you apply them'
-                : 'Offline · no model connected'}
+              {connected ? 'Proposals stay in review until you apply them' : 'No model connected'}
             </small>
           </div>
           <div className="chat-messages" aria-live="polite" aria-busy={busy}>
@@ -948,7 +947,7 @@ export default function ResearchChat({
                     {message.role === 'user'
                       ? 'You'
                       : message.provider === 'local'
-                        ? 'Local research worksheet'
+                        ? 'Planning worksheet'
                         : `GPT · ${message.model ?? 'OpenAI'}`}
                   </strong>
                   <time dateTime={message.createdAt}>{clock(message.createdAt)}</time>

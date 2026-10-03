@@ -1,0 +1,7 @@
+{
+  "name":"research-os-online", "main":"dist/server/index.js",
+  "compatibility_date":"2026-10-01", "compatibility_flags":["nodejs_compat"],
+  "assets":{"directory":"dist/client","binding":"ASSETS","run_worker_first":true},
+  "d1_databases":[{"binding":"DB","database_name":"research-os","database_id":"local-preview","migrations_dir":"drizzle"}],
+  "rules":[{"type":"CompiledWasm","globs":["**/*.wasm"],"fallthrough":true}]
+}

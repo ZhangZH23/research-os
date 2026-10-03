@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseLike as DatabaseSync } from '../cloud/sqlite';
 import type { ActivityEvent, ResearchNode } from '../shared/types';
 import { legacySeedNodes, mathSeedText, project } from './seed';
 

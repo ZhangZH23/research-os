@@ -153,6 +153,7 @@ export default function Inspector({
               {expanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
             </button>
             <button
+              data-owner-control
               className="icon-button"
               title="Edit item"
               aria-label="Edit item"
@@ -161,6 +162,7 @@ export default function Inspector({
               <Pencil size={17} />
             </button>
             <button
+              data-owner-control
               className="icon-button"
               title="Delete item"
               aria-label="Delete item"
@@ -190,13 +192,22 @@ export default function Inspector({
             <ShieldQuestion size={19} />
             Why do we believe this?
           </button>
-          <button className="button secondary inspector-research-chat" onClick={onDiscuss}>
+          <button
+            data-owner-control
+            className="button secondary inspector-research-chat"
+            onClick={onDiscuss}
+          >
             <Bot size={16} /> Work on this in research chat
           </button>
         </div>
         <div className="detail-tabs">
           {(['details', 'belief', 'history'] as const).map((t) => (
-            <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
+            <button
+              hidden={!state.canEdit && t === 'history'}
+              key={t}
+              className={tab === t ? 'active' : ''}
+              onClick={() => setTab(t)}
+            >
               {t === 'belief' ? 'Belief audit' : t === 'history' ? 'History' : 'Details'}
               {t === 'history' && <span>{history.length}</span>}
             </button>
@@ -239,9 +250,10 @@ export default function Inspector({
               </section>
               <section className="detail-section">
                 <ContributionSummary assessment={assessment} onReview={onAssess} />
-                <h3>Actions</h3>
-                <div className="action-grid">
+                <h3 data-owner-control>Actions</h3>
+                <div data-owner-control className="action-grid">
                   <button
+                    data-owner-control
                     onClick={() => {
                       setStatus(node.epistemicStatus);
                       setError('');
@@ -250,6 +262,7 @@ export default function Inspector({
                     Change status
                   </button>
                   <button
+                    data-owner-control
                     onClick={() =>
                       onAdd({ type: 'Evidence' }, { targetNodeId: id, edgeType: 'supports' })
                     }
@@ -257,11 +270,15 @@ export default function Inspector({
                     <Plus size={14} />
                     Add evidence
                   </button>
-                  <button onClick={() => onEdge({ sourceNodeId: id, edgeType: 'depends_on' })}>
+                  <button
+                    data-owner-control
+                    onClick={() => onEdge({ sourceNodeId: id, edgeType: 'depends_on' })}
+                  >
                     <GitBranch size={14} />
                     Add dependency
                   </button>
                   <button
+                    data-owner-control
                     onClick={() =>
                       onAdd(
                         { type: 'Counterexample' },
@@ -271,15 +288,16 @@ export default function Inspector({
                   >
                     Add contradiction
                   </button>
-                  <button onClick={() => setStatus('Proved')}>
+                  <button data-owner-control onClick={() => setStatus('Proved')}>
                     <Check size={14} />
                     Mark proved
                   </button>
-                  <button onClick={() => setStatus('Disproved')}>
+                  <button data-owner-control onClick={() => setStatus('Disproved')}>
                     <CircleX size={14} />
                     Mark disproved
                   </button>
                   <button
+                    data-owner-control
                     onClick={() =>
                       onAdd({ type: 'Note' }, { targetNodeId: id, edgeType: 'related_to' })
                     }
@@ -313,6 +331,7 @@ export default function Inspector({
                         </small>
                       </button>
                       <button
+                        data-owner-control
                         className="icon-button"
                         aria-label={`Remove relationship to ${researchTextLabel(related?.title ?? '')}`}
                         onClick={async () => {
@@ -495,7 +514,11 @@ export default function Inspector({
               </p>
             )}
             <div className="modal-footer">
-              <button className="button secondary" onClick={() => setStatus(null)}>
+              <button
+                data-owner-control
+                className="button secondary"
+                onClick={() => setStatus(null)}
+              >
                 Cancel
               </button>
               <button
@@ -518,7 +541,11 @@ export default function Inspector({
             </p>
             {error && <p className="error">{error}</p>}
             <div className="modal-footer">
-              <button className="button secondary" onClick={() => setConfirmDelete(false)}>
+              <button
+                data-owner-control
+                className="button secondary"
+                onClick={() => setConfirmDelete(false)}
+              >
                 Cancel
               </button>
               <button className="button danger" disabled={busy} onClick={remove}>

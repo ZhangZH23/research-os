@@ -25,7 +25,7 @@ export function ContributionSummary({
         <h3>
           <Scale size={16} /> Mathematical contribution
         </h3>
-        <button className="text-button" onClick={onReview}>
+        <button data-owner-control className="text-button" onClick={onReview}>
           {assessment ? 'Review assessment' : 'Assess this step'}
         </button>
       </div>

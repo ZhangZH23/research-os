@@ -11,7 +11,7 @@ import {
 import { dependencyClosure } from '../shared/epistemics';
 import type { ResearchEdge, ResearchNode } from '../shared/types';
 import { seedNodes } from './seed';
-import type { Store } from './store';
+import type { Store } from './domain-store';
 
 let savepointSequence = 0;
 const resultTypes = new Set(['Claim', 'Conjecture', 'Lemma', 'Theorem', 'Counterexample']);

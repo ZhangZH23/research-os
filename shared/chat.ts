@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { NODE_TYPES } from './types';
 import { CONTRIBUTION_CLASSIFICATIONS } from './program';
+import type { CandidateDraft, ReviewBasis } from './workbench';
 
 export const CHAT_MODES = ['explore', 'attack', 'audit'] as const;
 export type ChatMode = (typeof CHAT_MODES)[number];
@@ -94,6 +95,7 @@ export const chatResponseSchema = z
   .object({
     content: z.string().trim().min(1).max(60000),
     proposal: chatProposalSchema.nullable(),
+    candidates: z.array(z.unknown()).optional(),
   })
   .strict();
 export const sendMessageSchema = z
@@ -102,6 +104,8 @@ export const sendMessageSchema = z
     mode: z.enum(CHAT_MODES).default('explore'),
     contextNodeIds: z.array(ref).max(12).default([]),
     goalId: ref.nullable().optional(),
+    progressCriterion: z.string().max(3000).default(''),
+    notebook: z.boolean().default(false),
   })
   .strict();
 export interface ChatContext {
@@ -115,6 +119,11 @@ export interface ChatSession {
   title: string;
   createdAt: string;
   updatedAt: string;
+  goalId?: string | null;
+  progressCriterion?: string;
+  scratchpad?: string;
+  draft?: string;
+  source?: string;
 }
 export interface ChatMessage {
   id: string;
@@ -122,13 +131,26 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   mode: ChatMode;
-  provider: 'openai' | 'local' | 'user';
+  provider: 'openai' | 'local' | 'user' | 'imported';
   model: string | null;
   proposal: ChatProposal | null;
   proposalStatus: 'none' | 'pending' | 'applied' | 'discarded';
   context: ChatContext;
   createdAt: string;
   error?: string;
+  replyToId?: string;
+  goalId?: string | null;
+  progressCriterion?: string;
+  targetSnapshot?: { title: string; statement: string; baseline: string; successCriteria: string };
+  reviewBasis?: ReviewBasis;
+  candidates?: CandidateDraft[];
+  extractionNote?: string;
+  turnReview?: { decision: 'No new result' | 'Clarification' | 'Open'; reason: string; at: string };
+  turnReviewHistory?: {
+    decision: 'No new result' | 'Clarification' | 'Open';
+    reason: string;
+    at: string;
+  }[];
 }
 export interface ChatState {
   sessions: ChatSession[];

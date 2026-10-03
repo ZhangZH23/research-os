@@ -139,7 +139,11 @@ export default function Program({
           <h1>A destination. A path. A reason.</h1>
           <p>Make the target precise. Keep every intermediate step accountable.</p>
         </div>
-        <button className="button secondary" onClick={() => setEditing({ parentGoalId: null })}>
+        <button
+          data-owner-control
+          className="button secondary"
+          onClick={() => setEditing({ parentGoalId: null })}
+        >
           <Plus size={16} /> New goal
         </button>
       </div>
@@ -171,7 +175,11 @@ export default function Program({
             Write the theorem you want, the current benchmark, and a criterion for calling it
             solved.
           </p>
-          <button className="button primary" onClick={() => setEditing({ parentGoalId: null })}>
+          <button
+            data-owner-control
+            className="button primary"
+            onClick={() => setEditing({ parentGoalId: null })}
+          >
             Define an ultimate goal
           </button>
         </section>
@@ -184,6 +192,7 @@ export default function Program({
             </div>
             <div className="goal-tree">{roots.map((g) => tree(g))}</div>
             <button
+              data-owner-control
               className="program-add-milestone"
               onClick={() => setEditing({ parentGoalId: selected.id })}
             >
@@ -213,6 +222,7 @@ export default function Program({
                     {selected.status}
                   </span>
                   <button
+                    data-owner-control
                     className="icon-button"
                     aria-label="Edit selected goal"
                     onClick={() => setEditing({ goal: selected })}
@@ -246,6 +256,7 @@ export default function Program({
               </div>
               <div className="goal-target-actions">
                 <button
+                  data-owner-control
                   className="button primary"
                   onClick={() => onDiscuss(workPrompt, selected.id, selected.linkedNodeIds)}
                 >
@@ -282,6 +293,7 @@ export default function Program({
                       <ResearchText>{selected.nextAction}</ResearchText>
                     </div>
                     <button
+                      data-owner-control
                       className="text-button"
                       onClick={() =>
                         onDiscuss(
@@ -398,6 +410,7 @@ export default function Program({
                               </dl>
                             )}
                             <button
+                              data-owner-control
                               className="text-button"
                               onClick={() =>
                                 onDiscuss(
@@ -416,6 +429,7 @@ export default function Program({
                       <div className="program-empty-route">
                         <p>No approaches linked yet.</p>
                         <button
+                          data-owner-control
                           className="text-button"
                           onClick={() => onDiscuss(workPrompt, selected.id, selected.linkedNodeIds)}
                         >
@@ -430,7 +444,11 @@ export default function Program({
                     <h2>
                       <GitBranch size={17} /> Directly connected research
                     </h2>
-                    <button className="text-button" onClick={() => setEditing({ goal: selected })}>
+                    <button
+                      data-owner-control
+                      className="text-button"
+                      onClick={() => setEditing({ goal: selected })}
+                    >
                       Edit connections
                     </button>
                   </div>
@@ -528,10 +546,15 @@ export default function Program({
                         </p>
                       )}
                       <div className="audit-step-actions">
-                        <button className="text-button" onClick={() => onAssess(n)}>
+                        <button
+                          data-owner-control
+                          className="text-button"
+                          onClick={() => onAssess(n)}
+                        >
                           <Scale size={14} /> {a ? 'Review contribution' : 'Assess contribution'}
                         </button>
                         <button
+                          data-owner-control
                           className="text-button"
                           onClick={() =>
                             onDiscuss(

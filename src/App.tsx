@@ -1,6 +1,7 @@
 import Program, { programNodeIds } from './Program';
 import ContributionEditor from './ContributionEditor';
 import ResearchChat from './ResearchChat';
+import Workbench from './Workbench';
 import type { ProgramState } from '../shared/program';
 import HistoryMathematics from './HistoryMathematics';
 import ResearchText from './ResearchText';
@@ -56,6 +57,7 @@ import Inspector from './Inspector';
 import Ingest from './Ingest';
 import { NodeEditor, EdgeEditor } from './NodeEditor';
 const navigation = [
+  { id: 'workbench', name: 'Research Notebook', icon: BookOpen },
   { id: 'program', name: 'Research Program', icon: Flag },
   { id: 'chat', name: 'Research Chat', icon: MessagesSquare },
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
@@ -69,11 +71,12 @@ const navigation = [
 ];
 const initialPage = () => {
   const hash = location.hash.slice(1);
-  return navigation.some((n) => n.id === hash) ? hash : 'program';
+  return navigation.some((n) => n.id === hash) ? hash : 'workbench';
 };
 type EditState = { node?: ResearchNode; preset?: Partial<NodeInput>; link?: Partial<EdgeInput> };
 export default function App() {
   const [state, setState] = useState<ResearchState | null>(null);
+  const canEdit = state?.canEdit === true;
   const [program, setProgram] = useState<ProgramState>({ goals: [], assessments: [] });
   const [assessing, setAssessing] = useState<ResearchNode | null>(null);
   const [goalFilter, setGoalFilter] = useState('');
@@ -146,6 +149,7 @@ export default function App() {
         setMobileNav(false);
       }
       if (
+        canEdit &&
         e.key === 'n' &&
         !(e.target instanceof HTMLInputElement) &&
         !(e.target instanceof HTMLTextAreaElement) &&
@@ -158,7 +162,11 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [canEdit]);
+  useEffect(() => {
+    if (state && !canEdit && ['workbench', 'chat', 'ingest', 'activity'].includes(page))
+      navigate('program');
+  }, [state, canEdit, page, navigate]);
   const ranked = useMemo(() => (state ? frontier(state.nodes, state.edges) : []), [state]);
   const searchIndex = useMemo(
     () =>
@@ -231,7 +239,8 @@ export default function App() {
     notify(editing?.node ? 'Research item updated' : 'Research item created');
   }
   const discuss = (prompt: string, goalId?: string, nodeIds?: string[]) => {
-    navigate('chat');
+    if (!canEdit) return;
+    navigate('workbench');
     setChatIntent({ prompt, goalId, nodeIds });
   };
   const exploreGoal = (id: string) => {
@@ -249,8 +258,7 @@ export default function App() {
           <>
             <p role="alert">{loadError}</p>
             <p className="small muted">
-              If the local server stopped, open Start Research OS.command in the project folder,
-              then retry.
+              Check your internet connection and that you are signed in, then retry.
             </p>
             <button
               className="button primary"
@@ -468,7 +476,7 @@ export default function App() {
     </div>
   );
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${canEdit ? 'owner-view' : 'public-view'}`}>
       {mobileNav && <div className="nav-shade" onClick={() => setMobileNav(false)} />}
       <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
         <button className="brand" onClick={() => navigate('overview')}>
@@ -491,27 +499,29 @@ export default function App() {
         </div>
         <p className="nav-label">WORKSPACE</p>
         <nav>
-          {navigation.map((n) => (
-            <button
-              key={n.id}
-              className={page === n.id && !search ? 'active' : ''}
-              onClick={() => navigate(n.id)}
-            >
-              <n.icon size={18} />
-              <span>{n.name}</span>
-              {n.id === 'questions' && (
-                <small>{nodes.filter((n) => n.type === 'Open Question').length}</small>
-              )}
-              {n.id === 'frontier' && <span className="nav-dot" />}
-            </button>
-          ))}
+          {navigation
+            .filter((n) => canEdit || !['workbench', 'chat', 'ingest', 'activity'].includes(n.id))
+            .map((n) => (
+              <button
+                key={n.id}
+                className={page === n.id && !search ? 'active' : ''}
+                onClick={() => navigate(n.id)}
+              >
+                <n.icon size={18} />
+                <span>{n.name}</span>
+                {n.id === 'questions' && (
+                  <small>{nodes.filter((n) => n.type === 'Open Question').length}</small>
+                )}
+                {n.id === 'frontier' && <span className="nav-dot" />}
+              </button>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="local-mode">
             <Database size={16} />
             <div>
-              <strong>Local workspace</strong>
-              <span>Saved on this device</span>
+              <strong>Public research workspace</strong>
+              <span>{canEdit ? 'Owner editing access' : 'Browse the research'}</span>
             </div>
             <i />
           </div>
@@ -519,9 +529,9 @@ export default function App() {
             <span className="user-avatar">R</span>
             <div>
               <strong>Researcher</strong>
-              <span>Personal workspace</span>
+              <span>{canEdit ? 'Workspace owner' : 'Public visitor'}</span>
             </div>
-            <span className="version">v0.2</span>
+            <span className="version">v0.3</span>
           </div>
         </div>
       </aside>
@@ -561,6 +571,7 @@ export default function App() {
             )}
           </div>
           <button
+            data-owner-control
             aria-label="New item"
             className="button primary new-item"
             onClick={() => setEditing({})}
@@ -569,6 +580,18 @@ export default function App() {
             <span>New item</span>
           </button>
         </header>
+        <div className="public-access-banner">
+          <span>
+            {canEdit
+              ? 'Your research graph and goals are public. Editing and conversations are private to you.'
+              : 'Public research · read-only. Explore the graph, goals, and contribution assessments.'}
+          </span>
+          {!canEdit && (
+            <a href="/signin-with-chatgpt?return_to=%2F" target="_top">
+              Owner sign in
+            </a>
+          )}
+        </div>
         <main className={`main-content ${page === 'graph' && !search ? 'graph-page' : ''}`}>
           {search ? (
             <>
@@ -584,6 +607,18 @@ export default function App() {
                 {nodeRows(visible)}
               </section>
             </>
+          ) : page === 'workbench' && canEdit ? (
+            <Workbench
+              state={state}
+              program={program}
+              onRefresh={refresh}
+              onSelect={selectNode}
+              notify={notify}
+              initialPrompt={chatIntent?.prompt}
+              initialGoalId={chatIntent?.goalId}
+              initialNodeIds={chatIntent?.nodeIds}
+              onPromptConsumed={() => setChatIntent(null)}
+            />
           ) : page === 'program' ? (
             <Program
               state={state}
@@ -594,7 +629,7 @@ export default function App() {
               onAssess={setAssessing}
               onGraph={exploreGoal}
             />
-          ) : page === 'chat' ? (
+          ) : page === 'chat' && canEdit ? (
             <ResearchChat
               state={state}
               program={program}
@@ -803,7 +838,10 @@ export default function App() {
                     )}
                     edges={state.edges}
                     onSelect={selectNode}
-                    onConnect={(c) => setEdge({ sourceNodeId: c.source!, targetNodeId: c.target! })}
+                    readOnly={!canEdit}
+                    onConnect={(c) =>
+                      canEdit && setEdge({ sourceNodeId: c.source!, targetNodeId: c.target! })
+                    }
                     compact
                   />
                   <div className="graph-caption">
@@ -818,7 +856,7 @@ export default function App() {
                     <span>Click any node to inspect</span>
                   </div>
                 </section>
-                <section className="panel recent-panel">
+                <section data-owner-control className="panel recent-panel">
                   <div className="panel-title">
                     <h2>
                       <Clock3 size={17} />
@@ -850,7 +888,7 @@ export default function App() {
                   <h1>Research Graph</h1>
                   <p>Follow an argument from its assumptions to its evidence.</p>
                 </div>
-                <button className="button secondary" onClick={() => setEdge({})}>
+                <button data-owner-control className="button secondary" onClick={() => setEdge({})}>
                   <Link2 size={16} />
                   Add relationship
                 </button>
@@ -879,7 +917,10 @@ export default function App() {
                   assessments={program.assessments}
                   edges={state.edges}
                   onSelect={selectNode}
-                  onConnect={(c) => setEdge({ sourceNodeId: c.source!, targetNodeId: c.target! })}
+                  readOnly={!canEdit}
+                  onConnect={(c) =>
+                    canEdit && setEdge({ sourceNodeId: c.source!, targetNodeId: c.target! })
+                  }
                 />
                 <div className="graph-caption">
                   <span>
@@ -894,7 +935,11 @@ export default function App() {
                     <i className="line-sample red" />
                     contradicts / disproves
                   </span>
-                  <span>Drag between node handles to connect</span>
+                  <span>
+                    {canEdit
+                      ? 'Drag between node handles to connect'
+                      : 'Select any research item to inspect it'}
+                  </span>
                 </div>
               </section>
             </>
@@ -913,6 +958,7 @@ export default function App() {
                   </p>
                 </div>
                 <button
+                  data-owner-control
                   className="button secondary"
                   onClick={() =>
                     setEditing({
@@ -950,6 +996,7 @@ export default function App() {
                   <p>A transparent ranking of uncertainty, dependencies, and opportunity.</p>
                 </div>
                 <button
+                  data-owner-control
                   className="button secondary"
                   disabled={!state.llmEnabled || briefBusy}
                   title={
@@ -1099,7 +1146,7 @@ export default function App() {
                 </div>
               </div>
             </>
-          ) : page === 'ingest' ? (
+          ) : page === 'ingest' && canEdit ? (
             <Ingest state={state} onRefresh={refresh} notify={notify} onSelect={selectNode} />
           ) : (
             <>
@@ -1120,7 +1167,7 @@ export default function App() {
             </span>
             <span>
               <Database size={12} />
-              SQLite · local persistence
+              Public research · cloud persistence
             </span>
           </footer>
         </main>
@@ -1147,7 +1194,7 @@ export default function App() {
           }
         />
       )}
-      {assessing && (
+      {canEdit && assessing && (
         <ContributionEditor
           node={assessing}
           assessment={program.assessments.find((a) => a.nodeId === assessing.id)}
@@ -1156,7 +1203,7 @@ export default function App() {
           onDiscuss={(prompt, nodeIds) => discuss(prompt, undefined, nodeIds)}
         />
       )}
-      {editing && (
+      {canEdit && editing && (
         <NodeEditor
           node={editing.node}
           preset={editing.preset}
@@ -1164,7 +1211,7 @@ export default function App() {
           onSave={saveNode}
         />
       )}{' '}
-      {edge && (
+      {canEdit && edge && (
         <EdgeEditor
           nodes={nodes}
           preset={edge}

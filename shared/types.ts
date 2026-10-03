@@ -109,6 +109,7 @@ export interface ResearchState {
   edges: ResearchEdge[];
   events: ActivityEvent[];
   llmEnabled: boolean;
+  canEdit?: boolean;
 }
 export const proposalSchema = z
   .object({

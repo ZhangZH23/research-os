@@ -1,14 +1,14 @@
 {
-  "name": "research-os",
-  "version": "0.2.0",
+  "name": "research-os-online",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "tsx watch server/index.ts",
-    "build": "tsc --noEmit && vite build",
+    "dev": "pnpm build && wrangler dev --port 4312 --var LOCAL_PREVIEW_OWNER:true",
+    "build": "tsc --noEmit && vite build && node scripts/build-worker.mjs",
     "start": "tsx server/index.ts --production",
     "test": "tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
@@ -16,7 +16,10 @@
     "format": "prettier --write src server shared tests scripts/*.ts *.json *.ts *.yaml README.md",
     "launch": "node scripts/service.mjs start",
     "stop": "node scripts/service.mjs stop",
-    "status": "node scripts/service.mjs status"
+    "status": "node scripts/service.mjs status",
+    "db:generate": "drizzle-kit generate",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "test:cloud": "node --import tsx --test tests/cloud.test.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.8.5",
@@ -30,7 +33,9 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "sql.js": "^1.13.0",
+    "drizzle-orm": "^0.44.7"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
@@ -42,6 +47,11 @@
     "prettier": "^3.6.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
-    "vite": "^7.1.3"
+    "vite": "^7.1.3",
+    "@types/sql.js": "^1.4.9",
+    "esbuild": "^0.25.10",
+    "drizzle-kit": "^0.31.5",
+    "wrangler": "^4.45.0",
+    "@cloudflare/workers-types": "^4.20250927.0"
   }
 }
