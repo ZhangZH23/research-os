@@ -939,18 +939,24 @@ export default function ResearchChat({
                   <span className="chat-message-avatar">
                     {message.role === 'user' ? (
                       <UserRound size={14} />
-                    ) : message.provider === 'local' ? (
+                    ) : ['local', 'imported'].includes(message.provider) ? (
                       <BookOpen size={14} />
                     ) : (
                       <Sparkles size={14} />
                     )}
                   </span>
                   <strong>
-                    {message.role === 'user'
-                      ? 'You'
-                      : message.provider === 'local'
-                        ? 'Planning worksheet'
-                        : `GPT · ${message.model ?? 'OpenAI'}`}
+                    {message.provider === 'imported'
+                      ? message.role === 'user'
+                        ? 'Imported user turn'
+                        : `Imported reply${message.model ? ` · ${message.model} (reported)` : ''}`
+                      : message.role === 'user'
+                        ? 'You'
+                        : message.provider === 'local'
+                          ? 'Planning worksheet'
+                          : message.provider === 'openai'
+                            ? `GPT · ${message.model ?? 'OpenAI'}`
+                            : 'Assistant'}
                   </strong>
                   <time dateTime={message.createdAt}>{clock(message.createdAt)}</time>
                   <button
@@ -978,13 +984,28 @@ export default function ResearchChat({
                 {message.role === 'assistant' && (
                   <details className="chat-sent-context">
                     <summary>
-                      {message.context.nodeIds.length} research items in context
-                      {message.context.truncated ? ' · context was truncated' : ''}
-                      {message.provider === 'local' ? ' · kept locally' : ' · sent to OpenAI'}
+                      {message.context.nodeIds.length}{' '}
+                      {message.provider === 'imported'
+                        ? 'linked research items'
+                        : 'research items in context'}
+                      {message.context.truncated ? ' · recorded context was truncated' : ''}
+                      {message.provider === 'imported'
+                        ? ' · imported record'
+                        : message.provider === 'local'
+                          ? ' · worksheet; no model request'
+                          : message.provider === 'openai'
+                            ? ' · OpenAI request context'
+                            : ' · provider not recorded'}
                     </summary>
                     <p>
-                      {message.context.characters.toLocaleString()} characters of research context;
-                      recent session messages are included separately.
+                      {message.context.characters.toLocaleString()}{' '}
+                      {message.provider === 'imported'
+                        ? 'recorded context characters. The original provider and request context are not verified by this import. Importing this message did not call OpenAI.'
+                        : message.provider === 'local'
+                          ? 'characters of project context used for this worksheet. No OpenAI request was made.'
+                          : message.provider === 'openai'
+                            ? 'characters of research context for the OpenAI request; recent session messages are included separately.'
+                            : 'recorded context characters. No provider transmission is recorded.'}
                     </p>
                     {message.context.nodeIds.map((id) => {
                       const node = state.nodes.find((item) => item.id === id);
