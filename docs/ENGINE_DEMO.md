@@ -19,7 +19,7 @@ Not executed through browser clicks in this pass: the entire two-route/evidence/
 
 ## Start and safety
 
-Use the README's supported local Worker launch path. Open the local address and select **Research State**. An existing project may first require **Download private backup** and **Migrate this project locally**. This preserves historical assertions without inventing proofs. A fresh project needs no legacy migration.
+Use the README's supported local Worker launch path. Open the local address and select **Research State**. An existing project may first require **Download private backup** and **Migrate this project**. This preserves historical assertions without inventing proofs. A fresh project needs no legacy migration.
 
 Each browser tab keeps its own selected project. When switching after editing fields, confirm the unsaved-field warning only after saving the intended work. Saved records and any late running request stay in their original project.
 

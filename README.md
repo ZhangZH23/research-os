@@ -2,7 +2,9 @@
 
 Research OS is a local-first workbench for mathematics and TCS projects: chat with GPT or import visible conversations, capture exact source passages, review proposed research changes, and inspect what changed. It maintains attributed, revision-aware research records and checks explicit invariants. It does not certify arbitrary mathematics, literature novelty, or publishability.
 
-**This GitHub version is the Research State Engine upgrade (0.4).** The [existing public website](https://research-os-zhangzh23.zzh19980830.chatgpt.site) remains on its previously deployed version. Pushing this repository does not deploy the website or migrate its research database.
+**Research State Engine 0.4 is now online:** [open Research OS](https://research-os-zhangzh23.zzh19980830.chatgpt.site). Hosted version 4 was published successfully on October 2, 2026 (Pacific time), after all 216 tests passed. Sign in with the owner's ChatGPT account to use the private Research State workbench and GPT notebook. Kai and other visitors can use the same link to read published research; public access does not grant private notebook access or editing.
+
+Existing projects use the explicit backup and migration flow below before editing their research state. Deployment and migration are separate steps; pushing this repository alone does neither.
 
 ## Run the complete application locally
 
@@ -40,7 +42,7 @@ The existing notebook, graph, LaTeX renderer, contribution reviews, and session 
 
 ## Preserve existing work
 
-Download a private backup before migrating. **Research State → Download private backup → Migrate this project locally** performs additive, resumable chunks. Original records remain; unavailable history is not invented. Existing public material is frozen once as a legacy snapshot, while later revisions and new projects remain private.
+Download a private backup before migrating. **Research State → Download private backup → Migrate this project** performs additive, resumable chunks. Original records remain; unavailable history is not invented. Existing public material is frozen once as a legacy snapshot, while later revisions and new projects remain private.
 
 The maintenance command accepts only a local preview address:
 
@@ -74,4 +76,4 @@ The Worker reconstructs the domain in request-local SQLite, then saves individua
 
 The public read API uses frozen publication DTOs; notebook conversations, drafts, source artifacts, private reviews, and credentials require owner access. Project scoping is separate from authorization. The local owner preview flag is effective only on loopback addresses. Hosted editing requires Sites dispatch authentication and the configured owner identity. This remains a personal research workspace; sharing a public snapshot is not multi-user editing.
 
-The existing Sites hosting configuration is retained. Deployment is a separate action: review the source, back up the target workspace, preserve its connection secret and owner configuration, deploy through the existing hosting workflow, then explicitly migrate the target project. No hosted deployment or production migration is performed by these local commands.
+The existing Sites hosting configuration, public audience and owner access settings are retained. The current deployment is hosted version 4; its deployment record is in [ENGINE_UPGRADE.md](docs/ENGINE_UPGRADE.md). For future deployments, review the source, back up the target workspace, preserve its connection secret and owner configuration, deploy through the existing hosting workflow, then explicitly migrate the target project. No hosted deployment or production migration is performed by these local commands.

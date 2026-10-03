@@ -52,3 +52,11 @@ The measured benchmark used the real SQL.js bridge for 6,000 normalized records 
 ## Upload and deployment boundary
 
 The user authorized uploading this source to `ZhangZH23/research-os`; its visibility is public. Only source, documentation and synthetic fixtures belong in that upload. Local databases, backups, credentials, dependencies and generated browser artifacts stay ignored. GitHub upload does not publish the upgraded website. Hosted deployment and production migration remain separate work.
+
+## Hosted deployment update — October 2, 2026 (Pacific)
+
+Following the implementation and upload recorded above, the user authorized deploying the newest platform. [Research OS](https://research-os-zhangzh23.zzh19980830.chatgpt.site) is now running the Research State Engine 0.4 upgrade. The Sites deployment of hosted version **4** succeeded on October 3, 2026 UTC (October 2 in Pacific time), using Site source commit `8be2206a07e1922d13a32bbf17ecea2b4bfcf87a`. The publication workflow passed the locked dependency installation, typecheck, all **216/216 tests**, and the client/Worker build before publishing. The existing non-fatal client bundle-size warning remains.
+
+The existing public audience, configured owner identity and connection secret were preserved. The owner signs in to use private Research State, notebook conversations and GPT. Kai and other visitors may open the same public link to read published research; that link does not grant editing or access to the owner's private workbench.
+
+After publication, the owner-authenticated **Download private backup → Migrate this project** flow completed for the existing hosted project. A complete export and a storage snapshot of all 110 original records were saved locally outside Git; their data parsed successfully and passed the SQLite foreign-key check. Migration preserved the legacy graph, goals, assessments, conversations and events, and added 21 research objects (17 legacy nodes and 4 goals), 18 descriptive relations, and the first commit. Existing public material remains a frozen legacy snapshot; new revisions stay private until explicitly published. The hosted UI confirmed migration completion and enabled source capture and proposed changes. The earlier statements that production was unchanged and no production migration ran describe the implementation phase, before this deployment.

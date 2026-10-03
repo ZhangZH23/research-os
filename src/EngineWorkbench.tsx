@@ -243,7 +243,7 @@ export default function EngineWorkbench({
                 }, 'Legacy research retained as versioned historical records')
               }
             >
-              {busy ? 'Preserving records…' : 'Migrate this project locally'}
+              {busy ? 'Preserving records…' : 'Migrate this project'}
             </button>
           </div>
         </section>
