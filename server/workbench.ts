@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { Store } from './domain-store';
+import { LEGACY_PROJECT_ID, type Store } from './domain-store';
+import type { ResearchNode } from '../shared/types';
 import type { ProgramStore } from './program-store';
 import type { ChatStore } from './chat';
 import {
@@ -23,18 +24,44 @@ export class WorkbenchStore {
     readonly store: Store,
     readonly program: ProgramStore,
     readonly chat: ChatStore,
+    readonly onAdmit?: (candidate: Candidate, node: ResearchNode) => void,
   ) {
     store.db.exec(
       'CREATE TABLE IF NOT EXISTS workbench_candidates(id TEXT PRIMARY KEY,session_id TEXT NOT NULL REFERENCES chat_sessions(id),message_id TEXT NOT NULL REFERENCES chat_messages(id),data TEXT NOT NULL); CREATE INDEX IF NOT EXISTS workbench_by_session ON workbench_candidates(session_id);',
     );
   }
   private rows(): Candidate[] {
+    const sessions = new Set(this.chat.sessions().map((s) => s.id));
     return this.store.db
-      .prepare('SELECT data FROM workbench_candidates ORDER BY rowid')
-      .all()
-      .map((r) => JSON.parse(r.data));
+      .prepare(
+        "SELECT data FROM workbench_candidates WHERE COALESCE(json_extract(data,'$.projectId'),?)=? ORDER BY rowid",
+      )
+      .all(LEGACY_PROJECT_ID, this.store.projectId)
+      .map((r) => this.normalize(JSON.parse(r.data)))
+      .filter((c) => sessions.has(c.sessionId));
+  }
+  private normalize(c: Candidate): Candidate {
+    // The old review UI explicitly called its selections premises. Preserve that assertion,
+    // with attribution, instead of guessing that old selections were merely context.
+    return c.premiseNodeIds === undefined
+      ? {
+          ...c,
+          projectId: c.projectId ?? LEGACY_PROJECT_ID,
+          premiseNodeIds: [...c.relatedNodeIds],
+          legacyPremiseSelection: true,
+        }
+      : { ...c, projectId: c.projectId ?? LEGACY_PROJECT_ID };
   }
   private save(c: Candidate) {
+    if (!this.store.owns(c)) throw new Error('Candidate project mismatch');
+    this.chat.session(c.sessionId);
+    const source = this.chat.messages(c.sessionId).find((m) => m.id === c.messageId);
+    if (!source) throw new Error('Candidate source not found');
+    const existing = this.store.db
+      .prepare('SELECT data FROM workbench_candidates WHERE id=?')
+      .get(c.id);
+    if (existing && !this.store.owns(JSON.parse(existing.data)))
+      throw new Error('Candidate not found');
     this.store.db
       .prepare(
         'INSERT INTO workbench_candidates VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
@@ -43,14 +70,14 @@ export class WorkbenchStore {
     return c;
   }
   get(id: string) {
-    const row = this.store.db.prepare('SELECT data FROM workbench_candidates WHERE id=?').get(id);
-    if (!row) throw new Error('Candidate not found');
-    return JSON.parse(row.data) as Candidate;
+    const candidate = this.rows().find((c) => c.id === id);
+    if (!candidate) throw new Error('Candidate not found');
+    return candidate;
   }
   message(id: string) {
     const message = this.chat.messages().find((m) => m.id === id);
-    if (!message || message.role !== 'assistant' || message.error || message.provider === 'local')
-      throw new Error('Choose a successful GPT or imported reply.');
+    if (!message || message.error || message.provider === 'local')
+      throw new Error('Choose a human observation or a successful GPT/imported message.');
     return message;
   }
   stale(c: Candidate) {
@@ -97,10 +124,12 @@ export class WorkbenchStore {
     basis?: ReviewBasis,
   ) {
     const message = this.message(messageId);
-    const draft = candidateDraftSchema.parse(raw);
+    const parsed = candidateDraftSchema.parse(raw);
+    const draft = { ...parsed, premiseNodeIds: parsed.premiseNodeIds ?? [] };
     if (!message.content.includes(draft.sourceQuote))
       throw new Error('The source quote must be an exact passage from this reply.');
-    for (const nodeId of draft.relatedNodeIds) this.store.getNode(nodeId);
+    for (const nodeId of [...draft.relatedNodeIds, ...draft.premiseNodeIds])
+      this.store.getNode(nodeId);
     const goalId =
       message.goalId !== undefined ? message.goalId : (message.context.goalIds[0] ?? null);
     const date = new Date().toISOString();
@@ -108,7 +137,9 @@ export class WorkbenchStore {
       basis ??
       message.reviewBasis ??
       reviewBasis(this.store, this.program, goalId, message.context.nodeIds);
-    const extra = draft.relatedNodeIds.filter((id) => !captured.nodes.some((n) => n.id === id));
+    const extra = [...draft.relatedNodeIds, ...draft.premiseNodeIds].filter(
+      (id) => !captured.nodes.some((n) => n.id === id),
+    );
     const completeBasis = {
       ...captured,
       nodes: [...captured.nodes, ...reviewBasis(this.store, this.program, goalId, extra).nodes]
@@ -117,6 +148,7 @@ export class WorkbenchStore {
     };
     return this.save({
       ...draft,
+      projectId: this.store.projectId,
       id,
       sessionId: message.sessionId,
       messageId,
@@ -163,12 +195,15 @@ export class WorkbenchStore {
       );
     if (!this.message(c.messageId).content.includes(input.draft.sourceQuote))
       throw new Error('The source quote must be copied exactly from the reply.');
-    for (const nodeId of input.draft.relatedNodeIds) this.store.getNode(nodeId);
+    for (const nodeId of [...input.draft.relatedNodeIds, ...(input.draft.premiseNodeIds ?? [])])
+      this.store.getNode(nodeId);
     if (input.decision !== 'Unreviewed' && input.reason.trim().length < 15)
       throw new Error('Record a specific reason for this decision (at least 15 characters).');
     const next = {
       ...c,
       ...input.draft,
+      premiseNodeIds:
+        input.draft.premiseNodeIds ?? (c.legacyPremiseSelection ? (c.premiseNodeIds ?? []) : []),
       decision: input.decision,
       reason: input.reason,
       verification: input.verification,
@@ -176,7 +211,7 @@ export class WorkbenchStore {
       updatedAt: new Date().toISOString(),
     };
     if (!input.refreshBasis) {
-      const extra = input.draft.relatedNodeIds.filter(
+      const extra = [...input.draft.relatedNodeIds, ...(input.draft.premiseNodeIds ?? [])].filter(
         (id) => !c.basis.nodes.some((n) => n.id === id),
       );
       next.basis = {
@@ -190,6 +225,7 @@ export class WorkbenchStore {
       next.basis = reviewBasis(this.store, this.program, c.goalId, [
         ...c.basis.nodes.map((n) => n.id),
         ...input.draft.relatedNodeIds,
+        ...(input.draft.premiseNodeIds ?? []),
       ]);
     if (input.decision === 'Advance') this.validateAdvance(next);
     next.history = [
@@ -205,6 +241,7 @@ export class WorkbenchStore {
     ];
     return this.store.transaction(() => {
       if (
+        this.message(c.messageId).role === 'assistant' &&
         ['Advance', 'Useful partial result'].includes(next.decision) &&
         this.message(c.messageId).turnReview?.decision !== 'Open'
       )
@@ -238,16 +275,21 @@ export class WorkbenchStore {
   }
   integrate(id: string, raw: unknown) {
     const input = z
-      .object({ revision: z.number().int(), publishToProject: z.literal(true) })
-      .strict()
+      .union([
+        z.object({ revision: z.number().int(), admitToProject: z.literal(true) }).strict(),
+        // Compatibility for old clients: this is PRIVATE admission, never publication.
+        z.object({ revision: z.number().int(), publishToProject: z.literal(true) }).strict(),
+      ])
       .parse(raw);
     const c = this.get(id);
     if (c.revision !== input.revision)
       throw new Error('The reviewed version changed. Reload before adding it.');
     if (c.integratedNodeId)
       return { candidate: c, node: this.store.getNode(c.integratedNodeId), alreadyApplied: true };
-    if (!['Advance', 'Useful partial result'].includes(c.decision))
-      throw new Error('Review this candidate as an advance or useful partial result first.');
+    if (!['Advance', 'Useful partial result', 'Reformulation'].includes(c.decision))
+      throw new Error(
+        'Review this candidate as an advance, useful partial result, or reformulation first.',
+      );
     if (this.stale(c))
       throw new Error('The source context changed. Review the current project first.');
     if (this.duplicate(c))
@@ -273,23 +315,41 @@ export class WorkbenchStore {
           content: `${c.statement}\n\n**Baseline**\n${c.baseline}\n\n**Proposed mechanism**\n${c.mechanism}\n\n**Recorded evidence**\n${c.evidence}\n\n**Researcher check**\n${c.verification}\n\n**Still unresolved**\n${c.gap}\n\n**Next check**\n${c.nextCheck}`,
           epistemicStatus: 'Unverified',
           humanVerified: false,
-          originType: source.provider === 'openai' ? 'AI agent' : 'AI-extracted',
+          originType:
+            source.role === 'user'
+              ? 'Human'
+              : source.provider === 'openai'
+                ? 'AI agent'
+                : 'AI-extracted',
           originName:
-            source.provider === 'openai'
-              ? 'GPT reply reviewed in notebook'
-              : 'Supplied assistant transcript; authorship unverified',
+            source.role === 'user'
+              ? source.provider === 'user'
+                ? 'Researcher observation'
+                : 'Supplied human observation; authorship unverified'
+              : source.provider === 'openai'
+                ? 'GPT reply reviewed in notebook'
+                : 'Supplied assistant transcript; authorship unverified',
           provenanceText: `Session ${c.sessionId}; reply ${c.messageId}; candidate ${c.id}; review revision ${c.revision}; capture method ${c.origin}; source provider ${source.provider}.\nExact source: ${c.sourceQuote}\nResearcher decision: ${c.decision}. ${c.reason}`,
-          tags: ['notebook-result'],
+          tags: ['notebook-result', c.kind],
         },
         'Researcher added a reviewed notebook result; mathematical validity remains unverified.',
       );
-      for (const targetNodeId of c.relatedNodeIds)
+      for (const targetNodeId of c.premiseNodeIds ?? [])
         this.store.createEdge({
           sourceNodeId: node.id,
           targetNodeId,
           edgeType: 'depends_on',
           explanation:
             'Explicit premise selected in the notebook review; requires independent checking.',
+        });
+      for (const targetNodeId of c.relatedNodeIds.filter(
+        (id) => !(c.premiseNodeIds ?? []).includes(id),
+      ))
+        this.store.createEdge({
+          sourceNodeId: node.id,
+          targetNodeId,
+          edgeType: 'related_to',
+          explanation: 'Related notebook context; no logical premise or support is asserted.',
         });
       if (c.goalId) {
         const goal = this.program.getGoal(c.goalId);
@@ -307,6 +367,7 @@ export class WorkbenchStore {
         verdict: 'Unreviewed',
         reviewer: 'Notebook review; proof verification remains outstanding',
       });
+      this.onAdmit?.(c, node);
       const date = new Date().toISOString();
       const integrated = {
         ...c,
@@ -317,7 +378,7 @@ export class WorkbenchStore {
           ...c.history,
           {
             at: date,
-            action: 'Added to public research project',
+            action: 'Admitted to private research record',
             reason: c.reason,
             revision: c.revision,
           },

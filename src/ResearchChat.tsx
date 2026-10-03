@@ -33,7 +33,7 @@ import type {
   ConnectionStatus,
 } from '../shared/chat';
 import { researchTextLabel } from '../shared/math';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 import { Modal } from './ui';
 import MathEditor from './MathEditor';
 import ResearchText from './ResearchText';
@@ -97,6 +97,7 @@ export function ConnectionDialog({
   onChange: (connection: ConnectionStatus) => void;
   notify: (message: string) => void;
 }) {
+  const api = useProjectApi();
   const [key, setKey] = useState('');
   const [model, setModel] = useState(connection.model);
   const [persist, setPersist] = useState(connection.persisted);
@@ -487,6 +488,7 @@ export default function ResearchChat({
   onPromptConsumed?: () => void;
   notify: (message: string) => void;
 }) {
+  const api = useProjectApi();
   const [chat, setChat] = useState<ChatState>({
     sessions: [],
     messages: [],

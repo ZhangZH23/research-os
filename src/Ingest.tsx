@@ -11,7 +11,7 @@ import {
   type ReviewItem,
   type Proposal,
 } from '../shared/types';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 import { Badge, dateLabel } from './ui';
 const sample = `Conjecture: Collision constraints have full generic rank when evaluation sites are distinct. We have only checked the smallest field so far.\n\nExperiment: Enumerate repeated-site collision matrices over $\\mathbb{F}_5$ and compare their ranks with the distinct-site cases.\n\nFailed approach: Treat every collision equation as independent. This fails when sites coincide because the equations can be linearly dependent.\n\nOpen question: Which site patterns cause a rank defect?`;
 export default function Ingest({
@@ -25,6 +25,7 @@ export default function Ingest({
   notify: (s: string) => void;
   onSelect: (id: string) => void;
 }) {
+  const api = useProjectApi();
   const [transcript, setTranscript] = useState('');
   const [sourceName, setSourceName] = useState('Research session');
   const [mode, setMode] = useState<'manual' | 'openai'>('manual');

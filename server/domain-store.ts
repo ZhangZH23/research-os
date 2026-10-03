@@ -14,10 +14,14 @@ import {
 } from '../shared/types';
 import { project, seedNodes, seedEdges } from './seed';
 import { migrateSeedMathematics } from './math-seed-migration';
+export const LEGACY_PROJECT_ID = project.id;
+let transactionSequence = 0;
 
 export class Store {
   db: DatabaseLike;
-  constructor(database: DatabaseLike, seed = true) {
+  readonly projectId: string;
+  constructor(database: DatabaseLike, seed = true, projectId?: string) {
+    this.projectId = projectId ?? LEGACY_PROJECT_ID;
     this.db = database;
     this.db.exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -26,7 +30,8 @@ export class Store {
       CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, node_id TEXT, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS drafts(id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS events_node ON events(node_id);`);
-    if (!this.db.prepare('SELECT id FROM projects LIMIT 1').get()) {
+    if (!this.db.prepare('SELECT id FROM projects WHERE id=?').get(this.projectId)) {
+      if (projectId !== undefined) throw new Error('Project not found');
       this.transaction(() => {
         this.db
           .prepare('INSERT INTO projects VALUES(?,?)')
@@ -34,27 +39,46 @@ export class Store {
         if (seed) this.seed();
       });
     }
-    this.transaction(() => migrateSeedMathematics(this.db));
+    if (this.projectId === LEGACY_PROJECT_ID)
+      this.transaction(() => migrateSeedMathematics(this.db));
   }
   transaction<T>(fn: () => T): T {
-    this.db.exec('BEGIN IMMEDIATE');
+    const name = `research_store_${++transactionSequence}`;
+    this.db.exec(`SAVEPOINT ${name}`);
     try {
       const v = fn();
-      this.db.exec('COMMIT');
+      this.db.exec(`RELEASE SAVEPOINT ${name}`);
       return v;
     } catch (e) {
-      this.db.exec('ROLLBACK');
+      this.db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
+      this.db.exec(`RELEASE SAVEPOINT ${name}`);
       throw e;
     }
   }
   rows<T>(table: 'nodes' | 'edges' | 'events' | 'drafts' | 'projects'): T[] {
-    return (
-      this.db.prepare(`SELECT data FROM ${table} ORDER BY rowid`).all() as { data: string }[]
-    ).map((r) => JSON.parse(r.data));
+    const rows =
+      table === 'projects'
+        ? this.db.prepare('SELECT data FROM projects WHERE id=?').all(this.projectId)
+        : table === 'drafts'
+          ? this.db
+              .prepare(
+                "SELECT data FROM drafts WHERE COALESCE(json_extract(data,'$.projectId'),?)=? ORDER BY rowid",
+              )
+              .all(LEGACY_PROJECT_ID, this.projectId)
+          : this.db
+              .prepare(`SELECT data FROM ${table} WHERE project_id=? ORDER BY rowid`)
+              .all(this.projectId);
+    return (rows as { data: string }[]).map((r) => JSON.parse(r.data));
   }
+  /** Missing legacy scope belongs only to the original project, never the active project. */
+  owns(record: { projectId?: string }) {
+    return (record.projectId ?? LEGACY_PROJECT_ID) === this.projectId;
+  }
+
   getNode(id: string) {
-    const r = this.db.prepare('SELECT data FROM nodes WHERE id=?').get(id) as
-      { data: string } | undefined;
+    const r = this.db
+      .prepare('SELECT data FROM nodes WHERE id=? AND project_id=?')
+      .get(id, this.projectId) as { data: string } | undefined;
     if (!r) throw new Error('Node not found');
     return JSON.parse(r.data) as ResearchNode;
   }
@@ -77,9 +101,14 @@ export class Store {
     reason: string,
     createdAt = new Date().toISOString(),
   ) {
+    // A deleted node may legitimately be referenced by its retained audit event.
+    if (nodeId) {
+      const owner = this.db.prepare('SELECT project_id FROM nodes WHERE id=?').get(nodeId);
+      if (owner && owner.project_id !== this.projectId) throw new Error('Node not found');
+    }
     const event: ActivityEvent = {
       id: randomUUID(),
-      projectId: project.id,
+      projectId: this.projectId,
       nodeId,
       nodeTitle,
       eventType,
@@ -103,11 +132,13 @@ export class Store {
     const node: ResearchNode = {
       ...input,
       id,
-      projectId: project.id,
+      projectId: this.projectId,
       createdAt: date,
       updatedAt: date,
     };
-    this.db.prepare('INSERT INTO nodes VALUES(?,?,?)').run(id, project.id, JSON.stringify(node));
+    this.db
+      .prepare('INSERT INTO nodes VALUES(?,?,?)')
+      .run(id, this.projectId, JSON.stringify(node));
     this.event(id, node.title, 'node_created', null, node, reason, date);
     return node;
   }
@@ -133,7 +164,9 @@ export class Store {
     if (previous.epistemicStatus !== parsed.epistemicStatus && !reason.trim())
       throw new Error('A reason is required for a status change');
     const node: ResearchNode = { ...previous, ...parsed, updatedAt: new Date().toISOString() };
-    this.db.prepare('UPDATE nodes SET data=? WHERE id=?').run(JSON.stringify(node), id);
+    this.db
+      .prepare('UPDATE nodes SET data=? WHERE id=? AND project_id=?')
+      .run(JSON.stringify(node), id, this.projectId);
     this.event(
       id,
       node.title,
@@ -149,7 +182,7 @@ export class Store {
     const edges = this.rows<ResearchEdge>('edges').filter(
       (e) => e.sourceNodeId === id || e.targetNodeId === id,
     );
-    this.db.prepare('DELETE FROM nodes WHERE id=?').run(id);
+    this.db.prepare('DELETE FROM nodes WHERE id=? AND project_id=?').run(id, this.projectId);
     this.event(
       id,
       node.title,
@@ -170,14 +203,14 @@ export class Store {
     const edge: ResearchEdge = {
       ...input,
       id: randomUUID(),
-      projectId: project.id,
+      projectId: this.projectId,
       createdAt: new Date().toISOString(),
     };
     this.db
       .prepare('INSERT INTO edges VALUES(?,?,?,?,?,?)')
       .run(
         edge.id,
-        project.id,
+        this.projectId,
         edge.sourceNodeId,
         edge.targetNodeId,
         edge.edgeType,
@@ -197,7 +230,7 @@ export class Store {
     const edge = this.rows<ResearchEdge>('edges').find((e) => e.id === id);
     if (!edge) throw new Error('Relationship not found');
     const node = this.getNode(edge.sourceNodeId);
-    this.db.prepare('DELETE FROM edges WHERE id=?').run(id);
+    this.db.prepare('DELETE FROM edges WHERE id=? AND project_id=?').run(id, this.projectId);
     this.event(
       node.id,
       node.title,
@@ -211,6 +244,7 @@ export class Store {
     const validated = proposalSchema.parse(proposal);
     const draft: IngestionDraft = {
       ...validated,
+      projectId: this.projectId,
       id: randomUUID(),
       transcript,
       sourceName,
@@ -319,6 +353,8 @@ export class Store {
     });
   }
   seed() {
+    if (this.projectId !== LEGACY_PROJECT_ID)
+      throw new Error('The sample can only initialize its explicit legacy project');
     const transitions: Record<string, { before: string; reason: string }> = {
       'strong-conjecture': {
         before: 'Plausible',

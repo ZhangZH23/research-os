@@ -19,3 +19,8 @@ export const leases = sqliteTable('chat_leases', {
   token: text('token').notNull(),
   expiresAt: integer('expires_at').notNull(),
 });
+
+// Research State Engine v1 adds the engine_records collection to research_records.
+// It needs no new persistent D1 table: cloud/sqlite.ts reconstructs request-local
+// domain tables and registers every collection for the existing guarded CAS save.
+// Initializing that local schema is not a production D1 schema migration.

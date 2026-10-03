@@ -145,7 +145,7 @@ export default function NotebookReview({
             />
           ))}
           <details>
-            <summary>Premises this result depends on</summary>
+            <summary>Related context (not logical premises)</summary>
             {state.nodes.map((n) => (
               <label className="nb-checkbox" key={n.id}>
                 <input
@@ -157,6 +157,30 @@ export default function NotebookReview({
                       e.target.checked
                         ? [...draft.relatedNodeIds, n.id].slice(0, 12)
                         : draft.relatedNodeIds.filter((id) => id !== n.id),
+                    )
+                  }
+                />
+                <ResearchText inline>{n.title}</ResearchText>
+              </label>
+            ))}
+          </details>
+          <details>
+            <summary>Explicit logical premises</summary>
+            <p className="nb-caption">
+              Select only actual prerequisites. This records a prerequisite assertion; it does not
+              validate the inference or create proof support.
+            </p>
+            {state.nodes.map((n) => (
+              <label className="nb-checkbox" key={n.id}>
+                <input
+                  type="checkbox"
+                  checked={(draft.premiseNodeIds ?? []).includes(n.id)}
+                  onChange={(e) =>
+                    field(
+                      'premiseNodeIds',
+                      e.target.checked
+                        ? [...(draft.premiseNodeIds ?? []), n.id].slice(0, 12)
+                        : (draft.premiseNodeIds ?? []).filter((id) => id !== n.id),
                     )
                   }
                 />
@@ -268,6 +292,7 @@ export default function NotebookReview({
                     'gap',
                     'nextCheck',
                     'relatedNodeIds',
+                    'premiseNodeIds',
                   ].map((k) => [k, draft[k as keyof CandidateDraft]]),
                 ),
                 decision,
@@ -280,7 +305,7 @@ export default function NotebookReview({
             <Check size={14} /> Save private review
           </button>
           {!dirty &&
-            ['Advance', 'Useful partial result'].includes(candidate.decision) &&
+            ['Advance', 'Useful partial result', 'Reformulation'].includes(candidate.decision) &&
             !candidate.stale &&
             !candidate.duplicateOf && (
               <div className="nb-integrate">
@@ -295,14 +320,14 @@ export default function NotebookReview({
                     checked={consent}
                     onChange={(e) => setConsent(e.target.checked)}
                   />
-                  <span>Publish this reviewed result to my public research project.</span>
+                  <span>Admit this reviewed result to my private research project.</span>
                 </label>
                 <button
                   className="button secondary"
                   disabled={!consent || busy}
                   onClick={onIntegrate}
                 >
-                  Add result to project <ArrowUpRight size={14} />
+                  Admit privately <ArrowUpRight size={14} />
                 </button>
               </div>
             )}

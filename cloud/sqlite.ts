@@ -21,6 +21,7 @@ export const columns: Record<string, string[]> = {
   chat_sessions: ['id', 'data'],
   chat_messages: ['id', 'session_id', 'data'],
   workbench_candidates: ['id', 'session_id', 'message_id', 'data'],
+  engine_records: ['id', 'project_id', 'kind', 'data'],
 };
 export type StoredRecord = { collection: string; id: string; position: number; payload: string };
 const schema = `PRAGMA foreign_keys=ON;
@@ -35,7 +36,8 @@ CREATE TABLE contribution_assessments(node_id TEXT PRIMARY KEY REFERENCES nodes(
 CREATE TABLE program_metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE chat_sessions(id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE chat_messages(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES chat_sessions(id), data TEXT NOT NULL);
-CREATE TABLE workbench_candidates(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES chat_sessions(id), message_id TEXT NOT NULL REFERENCES chat_messages(id), data TEXT NOT NULL);`;
+CREATE TABLE workbench_candidates(id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES chat_sessions(id), message_id TEXT NOT NULL REFERENCES chat_messages(id), data TEXT NOT NULL);
+CREATE TABLE engine_records(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), kind TEXT NOT NULL, data TEXT NOT NULL);`;
 /** A real, request-local SQLite engine preserves the existing SQL constraints and nested transactions. */
 export class SQLiteDatabase implements DatabaseLike {
   private db: Database;

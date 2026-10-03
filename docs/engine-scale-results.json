@@ -1,0 +1,102 @@
+{
+  "provenance": "Synthetic engineering benchmark, not product validation",
+  "measuredAt": "2026-10-03T05:34:39.946Z",
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "darwin",
+    "release": "25.6.0",
+    "architecture": "arm64",
+    "cpu": "Apple M2",
+    "logicalCpus": 8
+  },
+  "dataset": {
+    "objects": 1200,
+    "revisions": 1200,
+    "evidence": 1200,
+    "routes": 1199,
+    "reviews": 1200,
+    "serializedBytes": 1851414
+  },
+  "trials": 5,
+  "warmupTrials": 1,
+  "buildMs": 1.085,
+  "sqlite": {
+    "implementation": "Real sql.js SQLiteDatabase bridge used by the Worker",
+    "records": 6000,
+    "serializedRecordBytes": 3553351,
+    "runtimeInitializationMs": 9.011,
+    "warmupTrials": 1,
+    "samples": [
+      {
+        "reconstructionMs": 44.211,
+        "snapshotMs": 33.351,
+        "readAndDecodeMs": 13.364,
+        "supportEvaluationMs": 49.183
+      },
+      {
+        "reconstructionMs": 44.855,
+        "snapshotMs": 34.648,
+        "readAndDecodeMs": 13.858,
+        "supportEvaluationMs": 61.564
+      },
+      {
+        "reconstructionMs": 49.328,
+        "snapshotMs": 31.332,
+        "readAndDecodeMs": 13.94,
+        "supportEvaluationMs": 52.226
+      },
+      {
+        "reconstructionMs": 38.412,
+        "snapshotMs": 25.733,
+        "readAndDecodeMs": 12.675,
+        "supportEvaluationMs": 47.606
+      },
+      {
+        "reconstructionMs": 42.173,
+        "snapshotMs": 26.967,
+        "readAndDecodeMs": 14.656,
+        "supportEvaluationMs": 47.923
+      }
+    ],
+    "medianMs": {
+      "reconstruction": 44.211,
+      "snapshot": 31.332,
+      "readAndDecode": 13.858,
+      "supportEvaluation": 49.183
+    }
+  },
+  "samples": [
+    {
+      "jsonReconstructionMs": 3.059,
+      "supportEvaluationMs": 49.46
+    },
+    {
+      "jsonReconstructionMs": 2.889,
+      "supportEvaluationMs": 47.084
+    },
+    {
+      "jsonReconstructionMs": 3.046,
+      "supportEvaluationMs": 46.783
+    },
+    {
+      "jsonReconstructionMs": 3.05,
+      "supportEvaluationMs": 40.212
+    },
+    {
+      "jsonReconstructionMs": 3.489,
+      "supportEvaluationMs": 45.069
+    }
+  ],
+  "summary": {
+    "supportMedianMs": 46.783,
+    "supportMinMs": 40.212,
+    "supportMaxMs": 49.46,
+    "processRssMiB": 308.719
+  },
+  "limitations": [
+    "Measures JSON and actual request-local SQL.js SQLite reconstruction/snapshot/read plus pure support; D1/network, HTTP, and browser throughput were not measured.",
+    "The current application still loads the whole workspace; no claim of 100,000-claim scale follows from this experiment.",
+    "Some review/evidence and conclusion scans remain quadratic. The benchmark measures one sparse synthetic chain, not all possible graphs.",
+    "No model was called; no human time savings or mathematical research superiority was measured."
+  ]
+}

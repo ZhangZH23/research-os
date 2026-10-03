@@ -1,6 +1,6 @@
 {
   "name": "research-os-online",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,17 +9,21 @@
   "scripts": {
     "dev": "pnpm build && wrangler dev --port 4312 --var LOCAL_PREVIEW_OWNER:true",
     "build": "tsc --noEmit && vite build && node scripts/build-worker.mjs",
-    "start": "tsx server/index.ts --production",
+    "start": "wrangler dev --port 4312 --var LOCAL_PREVIEW_OWNER:true",
     "test": "tsx --test tests/*.test.ts",
     "check": "tsc --noEmit",
     "demo:rank": "tsx scripts/rank-demo.ts",
     "format": "prettier --write src server shared tests scripts/*.ts *.json *.ts *.yaml README.md",
-    "launch": "node scripts/service.mjs start",
+    "launch": "pnpm dev",
     "stop": "node scripts/service.mjs stop",
     "status": "node scripts/service.mjs status",
     "db:generate": "drizzle-kit generate",
     "db:local": "wrangler d1 migrations apply DB --local",
-    "test:cloud": "node --import tsx --test tests/cloud.test.ts"
+    "test:cloud": "node --import tsx --test tests/cloud.test.ts",
+    "start:legacy": "tsx server/index.ts --production",
+    "engine:migrate": "tsx scripts/engine-migrate.ts",
+    "engine:scale": "tsx scripts/engine-scale.ts",
+    "engine:evaluate": "tsx scripts/engine-evaluate.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.8.5",

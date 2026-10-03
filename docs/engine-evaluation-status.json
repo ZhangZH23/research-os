@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "status": "not_run",
+  "arms": [
+    {
+      "id": "A_notes",
+      "status": "not_run"
+    },
+    {
+      "id": "B_retrieval",
+      "status": "not_run"
+    },
+    {
+      "id": "C_engine",
+      "status": "not_run"
+    }
+  ],
+  "protocol": {
+    "A_notes": "Same model with project notes/context",
+    "B_retrieval": "Same model with retrieval and summaries",
+    "C_engine": "Same model with structured state and deterministic checks",
+    "budgetPolicy": "Use equal limits or explicitly report per-arm input/output token usage and measured cost.",
+    "splitPolicy": "Hold out complete projects, not adjacent turns from the same project."
+  },
+  "liveEvaluation": {
+    "status": "not_run",
+    "reason": "No automatic paid calls. Run a separately authorized, credentialed model experiment with an explicit budget, save visible artifacts, then import the measured outputs into this scoring harness."
+  },
+  "limitations": [
+    "Synthetic expected answers and mocked outputs are engineering tests, not evidence of product superiority.",
+    "This CLI does not implement additional model providers or automate consumer ChatGPT access."
+  ]
+}

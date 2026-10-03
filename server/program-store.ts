@@ -11,7 +11,7 @@ import {
 import { dependencyClosure } from '../shared/epistemics';
 import type { ResearchEdge, ResearchNode } from '../shared/types';
 import { seedNodes } from './seed';
-import type { Store } from './domain-store';
+import { LEGACY_PROJECT_ID, type Store } from './domain-store';
 
 let savepointSequence = 0;
 const resultTypes = new Set(['Claim', 'Conjecture', 'Lemma', 'Theorem', 'Counterexample']);
@@ -53,12 +53,15 @@ export class ProgramStore {
       CREATE TABLE IF NOT EXISTS program_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     `);
     this.atomic(() => {
-      if (store.db.prepare("SELECT key FROM program_metadata WHERE key='initialized-v1'").get())
-        return;
-      this.seedIllustrativeProgram();
+      const key =
+        store.projectId === LEGACY_PROJECT_ID
+          ? 'initialized-v1'
+          : `initialized-v1:${store.projectId}`;
+      if (store.db.prepare('SELECT key FROM program_metadata WHERE key=?').get(key)) return;
+      if (store.projectId === LEGACY_PROJECT_ID) this.seedIllustrativeProgram();
       store.db
         .prepare('INSERT INTO program_metadata(key,value) VALUES(?,?)')
-        .run('initialized-v1', new Date().toISOString());
+        .run(key, new Date().toISOString());
     });
   }
 
@@ -78,12 +81,16 @@ export class ProgramStore {
   }
 
   state(): ProgramState {
-    const goals = this.store.db.prepare('SELECT data FROM research_goals ORDER BY rowid').all() as {
+    const goals = this.store.db
+      .prepare('SELECT data FROM research_goals WHERE project_id=? ORDER BY rowid')
+      .all(this.store.projectId) as {
       data: string;
     }[];
     const assessments = this.store.db
-      .prepare('SELECT data FROM contribution_assessments ORDER BY rowid')
-      .all() as { data: string }[];
+      .prepare(
+        'SELECT a.data FROM contribution_assessments a JOIN nodes n ON n.id=a.node_id WHERE n.project_id=? ORDER BY a.rowid',
+      )
+      .all(this.store.projectId) as { data: string }[];
     const { nodes, edges } = this.store.state();
     const byId = new Map(nodes.map((node) => [node.id, node]));
     return {
@@ -119,8 +126,9 @@ export class ProgramStore {
   }
 
   getGoal(id: string): ResearchGoal {
-    const row = this.store.db.prepare('SELECT data FROM research_goals WHERE id=?').get(id) as
-      { data: string } | undefined;
+    const row = this.store.db
+      .prepare('SELECT data FROM research_goals WHERE id=? AND project_id=?')
+      .get(id, this.store.projectId) as { data: string } | undefined;
     if (!row) throw new Error('Research goal not found');
     return JSON.parse(row.data) as ResearchGoal;
   }
@@ -162,10 +170,16 @@ export class ProgramStore {
       const id = randomUUID();
       this.validateGoal(input, id);
       const now = new Date().toISOString();
-      const goal: ResearchGoal = { ...input, id, createdAt: now, updatedAt: now };
+      const goal: ResearchGoal = {
+        ...input,
+        id,
+        projectId: this.store.projectId,
+        createdAt: now,
+        updatedAt: now,
+      };
       this.store.db
         .prepare('INSERT INTO research_goals(id,project_id,data) VALUES(?,?,?)')
-        .run(id, this.store.state().project.id, JSON.stringify(goal));
+        .run(id, this.store.projectId, JSON.stringify(goal));
       this.store.event(null, goal.title, 'goal_created', null, goal, 'Research goal created');
       return goal;
     });
@@ -180,8 +194,8 @@ export class ProgramStore {
       this.validateGoal(input, id);
       const goal: ResearchGoal = { ...previous, ...input, updatedAt: new Date().toISOString() };
       this.store.db
-        .prepare('UPDATE research_goals SET data=? WHERE id=?')
-        .run(JSON.stringify(goal), id);
+        .prepare('UPDATE research_goals SET data=? WHERE id=? AND project_id=?')
+        .run(JSON.stringify(goal), id, this.store.projectId);
       this.store.event(
         null,
         goal.title,
@@ -218,6 +232,7 @@ export class ProgramStore {
       const previous = row ? (JSON.parse(row.data) as ContributionAssessment) : null;
       const assessment: ContributionAssessment = {
         ...input,
+        projectId: this.store.projectId,
         nodeId,
         updatedAt: new Date().toISOString(),
         basisUpdatedAt: node.updatedAt,

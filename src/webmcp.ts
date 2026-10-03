@@ -8,7 +8,7 @@ type ResearchTool = {
 };
 
 /** Exposes only the same research program already visible to the visitor. */
-export function registerResearchTools() {
+export function registerResearchTools(projectId?: string) {
   const context = (
     document as Document & {
       modelContext?: {
@@ -28,7 +28,10 @@ export function registerResearchTools() {
     async execute(input) {
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length)
         throw new Error('Expected an empty object.');
-      const response = await fetch('/api/program', { credentials: 'same-origin' });
+      const response = await fetch('/api/program', {
+        credentials: 'same-origin',
+        headers: projectId ? { 'x-research-project': projectId } : {},
+      });
       if (!response.ok)
         throw new Error('Could not read the research program. Check that you are signed in.');
       return response.json();
@@ -39,5 +42,10 @@ export function registerResearchTools() {
   } catch {
     /* The visible research workspace remains usable if registration is unavailable. */
   }
-  window.addEventListener('pagehide', () => lifecycle.abort(), { once: true });
+  const stop = () => lifecycle.abort();
+  window.addEventListener('pagehide', stop, { once: true });
+  return () => {
+    stop();
+    window.removeEventListener('pagehide', stop);
+  };
 }

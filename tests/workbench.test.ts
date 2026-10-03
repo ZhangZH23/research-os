@@ -142,11 +142,14 @@ test('restatements, missing independent checks and identical before/after claims
       /verification/,
     );
     const reviewed = accept(f, c.id, 'Reformulation', { classification: 'Restatement' });
-    assert.throws(
-      () => f.notebook.integrate(c.id, { revision: reviewed.revision, publishToProject: true }),
-      /Review this candidate/,
-    );
-    assert.equal(f.store.state().nodes.length, 0);
+    // A reformulation may be privately admitted for methodological value without becoming an advance.
+    const admitted = f.notebook.integrate(c.id, {
+      revision: reviewed.revision,
+      admitToProject: true,
+    });
+    assert.equal(admitted.node.epistemicStatus, 'Unverified');
+    assert.equal(admitted.candidate.decision, 'Reformulation');
+    assert.equal(f.store.state().nodes.length, 1);
   } finally {
     f.close();
   }
@@ -270,7 +273,7 @@ test('changing an integrated result excludes it from current progress while reta
     const current = f.notebook.state().candidates[0];
     assert.equal(current.stale, true);
     assert.equal(current.decision, 'Advance');
-    assert.ok(current.history.some((h) => h.action === 'Added to public research project'));
+    assert.ok(current.history.some((h) => h.action === 'Admitted to private research record'));
   } finally {
     f.close();
   }

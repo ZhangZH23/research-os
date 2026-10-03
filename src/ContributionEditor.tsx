@@ -10,7 +10,7 @@ import type { ResearchNode } from '../shared/types';
 import ResearchText from './ResearchText';
 import MathEditor from './MathEditor';
 import { Modal } from './ui';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 
 export function ContributionSummary({
   assessment,
@@ -80,6 +80,7 @@ export default function ContributionEditor({
   onSaved: () => Promise<void>;
   onDiscuss: (prompt: string, nodeIds?: string[]) => void;
 }) {
+  const api = useProjectApi();
   const [form, setForm] = useState<ContributionInput>(
     assessment ?? {
       classification: 'Unassessed',

@@ -98,6 +98,9 @@ export interface ActivityEvent {
   createdAt: string;
 }
 export interface Project {
+  visibility?: 'private' | 'public';
+  archivedAt?: string | null;
+  updatedAt?: string;
   id: string;
   title: string;
   description: string;
@@ -154,6 +157,7 @@ export type ReviewItem = Proposal['items'][number] & {
   mergeNodeId?: string;
 };
 export interface IngestionDraft extends Proposal {
+  projectId?: string;
   id: string;
   mode: 'manual' | 'openai';
   transcript: string;

@@ -1,6 +1,9 @@
 import type { D1Database, Fetcher, ExecutionContext } from '@cloudflare/workers-types';
 import { z, ZodError } from 'zod';
-import { Store } from '../server/domain-store';
+import { Store, LEGACY_PROJECT_ID } from '../server/domain-store';
+import { ResearchEngine, EngineConflict } from '../server/research-engine';
+import { engineRoute } from '../server/engine-http';
+import { publishedState, publishedProgram, publishedProjects } from '../server/engine-public';
 import { ProgramStore } from '../server/program-store';
 import { ChatStore, buildResearchContext, requestResearchReply } from '../server/chat';
 import { WorkbenchStore } from '../server/workbench';
@@ -78,7 +81,7 @@ async function api(request: Request, env: Env) {
       return response({ error: 'JSON content required' }, 415);
   }
   if (path === '/api/health')
-    return response({ service: 'research-os', version: '0.3.0', storage: 'cloud' });
+    return response({ service: 'research-os', version: '0.4.0', storage: 'cloud' });
   const connection = new ConnectionManager(env.CONNECTION_SECRET || '', user || 'local-preview');
   if (access.canEdit) await connection.restore(request);
   let repository: Repository | undefined;
@@ -87,14 +90,28 @@ async function api(request: Request, env: Env) {
     await repository.reload();
     const repo = repository;
     // First use creates the same illustrative program. CAS makes concurrent first reads safe.
-    let store!: Store, program!: ProgramStore, chat!: ChatStore;
+    let store!: Store, program!: ProgramStore, chat!: ChatStore, engine!: ResearchEngine;
+    const selectedProject =
+      request.headers.get('x-research-project') ?? url.searchParams.get('project') ?? undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
-      store = new Store(repo.db);
+      store = new Store(repo.db, true, selectedProject);
       program = new ProgramStore(store);
-      chat = new ChatStore(store, program, connection as any, fetch, {
-        save: () => repo.save(),
-        reload: () => repo.reload(),
-      });
+      engine = new ResearchEngine(
+        store,
+        program,
+        access.canEdit ? 'Workspace owner' : 'Public reader',
+      );
+      chat = new ChatStore(
+        store,
+        program,
+        connection as any,
+        fetch,
+        {
+          save: () => repo.save(),
+          reload: () => repo.reload(),
+        },
+        engine.chatHooks(),
+      );
       try {
         await repo.save();
         break;
@@ -103,17 +120,57 @@ async function api(request: Request, env: Env) {
         await repo.reload();
       }
     }
-    const notebook = new WorkbenchStore(store, program, chat);
+    const notebook = new WorkbenchStore(store, program, chat, (candidate, node) =>
+      engine.admitLegacyCandidate(candidate, node),
+    );
     const body = async () => {
       const text = await request.text();
       if (text.length > 1_000_000) throw new Error('Request is too large');
       return JSON.parse(text || '{}');
     };
     const done = async (value: unknown, status = 200) => {
+      if (method !== 'GET' && !path.startsWith('/api/engine/') && !path.startsWith('/api/projects'))
+        engine.syncLegacy();
       await repo.save();
       return response(value, status, connection);
     };
     return await withConnection(connection, async () => {
+      if (path === '/api/projects' && method === 'GET')
+        return done({
+          projects: access.canEdit ? engine.listProjects() : publishedProjects(engine),
+        });
+      if (path === '/api/projects' && method === 'POST')
+        return done(engine.createProject(await body()), 201);
+      const projectMatch = path.match(/^\/api\/projects\/([^/]+)$/);
+      if (projectMatch && method === 'PATCH') {
+        const scoped = new Store(repo.db, false, projectMatch[1]);
+        return done(
+          new ResearchEngine(scoped, new ProgramStore(scoped)).updateProject(await body()),
+        );
+      }
+      if (path === '/api/public/export' && method === 'GET') return response(engine.publicExport());
+      if (!access.canEdit) {
+        if (path === '/api/state') return response(publishedState(engine));
+        if (path === '/api/program') return response(publishedProgram(engine));
+        return response({ error: 'Public route unavailable' }, 404);
+      }
+      if (path.startsWith('/api/engine/')) {
+        const result = await engineRoute(engine, path, method, body, url);
+        return result === undefined
+          ? response({ error: 'Unknown research engine route' }, 404)
+          : done(result);
+      }
+      if (
+        method !== 'GET' &&
+        !path.startsWith('/api/research-chat/connection') &&
+        !engine.migrationReport().ready
+      )
+        throw new EngineConflict(
+          'Download a backup and complete the project migration in Research State before editing legacy research.',
+        );
+      if (method !== 'GET' && engine.project().archived)
+        throw new Error('Restore the archived project before editing');
+
       if (path === '/api/state' && method === 'GET')
         return done(
           access.canEdit
@@ -122,10 +179,23 @@ async function api(request: Request, env: Env) {
         );
       if (path === '/api/program' && method === 'GET')
         return done(access.canEdit ? program.state() : publicProgram(program.state()));
-      if (path === '/api/program/goals' && method === 'POST')
-        return done(program.createGoal(await body()), 201);
+      if (path === '/api/program/goals' && method === 'POST') {
+        const input = await body();
+        if (input.status === 'Achieved')
+          throw new Error(
+            'Use an explicit revision-bound goal-satisfaction review in Research State.',
+          );
+        return done(program.createGoal(input), 201);
+      }
       let match = path.match(/^\/api\/program\/goals\/([^/]+)$/);
-      if (match && method === 'PATCH') return done(program.updateGoal(match[1], await body()));
+      if (match && method === 'PATCH') {
+        const input = await body();
+        if (input.status === 'Achieved' && program.getGoal(match[1]).status !== 'Achieved')
+          throw new Error(
+            'Use an explicit revision-bound goal-satisfaction review in Research State.',
+          );
+        return done(program.updateGoal(match[1], input));
+      }
       match = path.match(/^\/api\/program\/assessments\/([^/]+)$/);
       if (match && method === 'PUT') return done(program.saveAssessment(match[1], await body()));
       if (path === '/api/nodes' && method === 'POST') {
@@ -348,7 +418,7 @@ async function api(request: Request, env: Env) {
     const databaseError = /D1_ERROR|SQLITE_|database disk|out of memory/i.test(message);
     if (databaseError) console.error('Research storage request failed');
     const status =
-      error instanceof ConflictError
+      error instanceof ConflictError || error instanceof EngineConflict
         ? 409
         : /not found/i.test(message)
           ? 404

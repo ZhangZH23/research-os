@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { NODE_TYPES } from './types';
 import { CONTRIBUTION_CLASSIFICATIONS } from './program';
 import type { CandidateDraft, ReviewBasis } from './workbench';
+import type { ContextManifest } from './engine';
 
 export const CHAT_MODES = ['explore', 'attack', 'audit'] as const;
 export type ChatMode = (typeof CHAT_MODES)[number];
@@ -109,12 +110,25 @@ export const sendMessageSchema = z
   })
   .strict();
 export interface ChatContext {
+  projectId?: string;
+  engineManifest?: ContextManifest;
+  manifest?: {
+    formatVersion: 1;
+    projectId: string;
+    selected: { id: string; kind: string; fingerprint: string; reason: string; excerpt: boolean }[];
+    omissions: { kind: string; count: number; reason: string }[];
+    estimatedTokens: number;
+    tokenEstimateMethod: string;
+  };
   nodeIds: string[];
   goalIds: string[];
   truncated: boolean;
   characters: number;
 }
 export interface ChatSession {
+  projectId?: string;
+  originalTranscript?: string;
+  importedAt?: string;
   id: string;
   title: string;
   createdAt: string;
@@ -126,6 +140,10 @@ export interface ChatSession {
   source?: string;
 }
 export interface ChatMessage {
+  projectId?: string;
+  researchRunId?: string;
+  requestOutcome?: 'pending' | 'completed' | 'known-failed' | 'ambiguous' | 'incomplete';
+  visibleProviderOutput?: string;
   id: string;
   sessionId: string;
   role: 'user' | 'assistant';

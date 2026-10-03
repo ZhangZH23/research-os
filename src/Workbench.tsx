@@ -3,6 +3,7 @@ import {
   BookOpen,
   Table2,
   Plus,
+  GitBranch,
   Upload,
   Send,
   Settings2,
@@ -15,7 +16,8 @@ import type { ResearchState } from '../shared/types';
 import type { ProgramState } from '../shared/program';
 import type { ChatMessage, ChatMode, ChatSession, ChatState } from '../shared/chat';
 import type { Candidate, NotebookState } from '../shared/workbench';
-import { api } from './api';
+import type { SourceArtifact, EngineData } from '../shared/engine';
+import { useProjectApi } from './ProjectScope';
 import ResearchText from './ResearchText';
 import MathEditor from './MathEditor';
 import { ConnectionDialog } from './ResearchChat';
@@ -33,6 +35,7 @@ const plain = (s: string, n = 110) => researchTextLabel(s).slice(0, n);
 const time = (s: string) =>
   new Date(s).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 export default function Workbench({
+  onProposeSource,
   state,
   program,
   onRefresh,
@@ -43,6 +46,7 @@ export default function Workbench({
   initialNodeIds,
   onPromptConsumed,
 }: {
+  onProposeSource?: (sourceId: string) => void;
   state: ResearchState;
   program: ProgramState;
   onRefresh: () => Promise<void>;
@@ -53,6 +57,7 @@ export default function Workbench({
   initialNodeIds?: string[];
   onPromptConsumed?: () => void;
 }) {
+  const api = useProjectApi();
   const [chat, setChat] = useState(emptyChat),
     [notebook, setNotebook] = useState<NotebookState>({ candidates: [] }),
     [sessionId, setSessionId] = useState(''),
@@ -601,6 +606,42 @@ export default function Workbench({
                       </div>
                     )}
                     <ResearchText className="nb-message-content">{m.content}</ResearchText>
+                    {onProposeSource && (
+                      <div className="nb-message-actions">
+                        <button
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() =>
+                            act(async () => {
+                              if (m.role === 'assistant' && m.researchRunId) {
+                                const engine = await api<EngineData>('/engine/state');
+                                const source = engine.sources.find(
+                                  (s) => s.id === `chat-output:${m.id}`,
+                                );
+                                if (source) {
+                                  onProposeSource(source.id);
+                                  return;
+                                }
+                                throw new Error(
+                                  'The recorded run output is not yet available as an immutable source. Reload this project and retry.',
+                                );
+                              }
+                              const source = await api<SourceArtifact>('/engine/sources', 'POST', {
+                                kind: m.role === 'user' ? 'human_note' : 'model_response',
+                                text: m.content,
+                                attribution:
+                                  m.role === 'user'
+                                    ? 'Researcher; notebook prompt'
+                                    : `${m.provider ?? 'Assistant'} / ${m.model ?? 'not supplied'}; visible notebook reply`,
+                              });
+                              onProposeSource(source.id);
+                            })
+                          }
+                        >
+                          <GitBranch size={13} /> Propose research change
+                        </button>
+                      </div>
+                    )}
                     {m.role === 'assistant' && !m.error && m.provider !== 'local' && (
                       <>
                         <div className="nb-message-actions">
@@ -771,7 +812,7 @@ export default function Workbench({
                 act(async () => {
                   await api(`/notebook/candidates/${selected.id}/integrate`, 'POST', {
                     revision: selected.revision,
-                    publishToProject: true,
+                    admitToProject: true,
                   });
                   await reload();
                   await onRefresh();

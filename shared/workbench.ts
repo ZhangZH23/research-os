@@ -30,6 +30,8 @@ export const candidateDraftSchema = z
     gap: z.string().max(8000),
     nextCheck: z.string().max(8000),
     relatedNodeIds: z.array(z.string().min(1).max(200)).max(12),
+    /** Explicit logical prerequisites; related context is never automatically a premise. */
+    premiseNodeIds: z.array(z.string().min(1).max(200)).max(12).optional(),
   })
   .strict();
 export type CandidateDraft = z.infer<typeof candidateDraftSchema>;
@@ -39,6 +41,8 @@ export interface ReviewBasis {
   nodes: { id: string; hash: string }[];
 }
 export interface Candidate extends CandidateDraft {
+  projectId?: string;
+  legacyPremiseSelection?: boolean;
   id: string;
   sessionId: string;
   messageId: string;

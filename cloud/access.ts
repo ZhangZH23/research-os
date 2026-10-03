@@ -23,7 +23,7 @@ export function workspaceAccess(request: Request, env: AccessEnvironment) {
 export function isPublicRead(request: Request) {
   return (
     request.method === 'GET' &&
-    ['/api/state', '/api/program', '/api/health'].includes(new URL(request.url).pathname)
+    ['/api/state', '/api/program', '/api/health', '/api/projects', '/api/public/export'].includes(new URL(request.url).pathname)
   );
 }
 

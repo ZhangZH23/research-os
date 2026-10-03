@@ -1,0 +1,169 @@
+[
+  {
+    "id": "I25-idempotent-semantic-commit",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      25
+    ],
+    "testFile": "tests/engine-domain.test.ts",
+    "testName": "proposals require source/check/review and commits are idempotent semantic transactions",
+    "beforeState": {
+      "project": "empty private",
+      "proposal": "source-grounded, checked and human-approved"
+    },
+    "newMaterial": {
+      "action": "Repeat commit with the same proposal revision, accepted operations and idempotency key"
+    },
+    "expected": {
+      "stateEffects": "Exactly one commit and one admitted object; retry returns the existing commit"
+    },
+    "expectedUnknowns": [
+      "Mathematical validity remains open"
+    ],
+    "reviewExplanation": "Network retries cannot manufacture additional progress.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I26-stale-read-set",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      26
+    ],
+    "testFile": "tests/engine-domain.test.ts",
+    "testName": "stale heads and read sets require revised proposals, fresh checks, and renewed review",
+    "beforeState": {
+      "project": "one admitted exact revision",
+      "proposal": "checked against previous head and read set"
+    },
+    "newMaterial": {
+      "action": "Change the project state, then try committing the old proposal"
+    },
+    "expected": {
+      "stateEffects": "Conflict; no state overwrite; a revised proposal needs new checks/review"
+    },
+    "expectedUnknowns": [
+      "Whether the stale proposal remains mathematically applicable"
+    ],
+    "reviewExplanation": "Database CAS and logical read-set validation are distinct.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I27-transaction-rollback",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      27
+    ],
+    "testFile": "tests/engine-domain.test.ts",
+    "testName": "selected operation dependencies and mid-commit failure leave no partial research, graph, or journal",
+    "beforeState": {
+      "project": "private research state before a multi-operation commit"
+    },
+    "newMaterial": {
+      "action": "Omit a referenced temporary operation or inject a failure after partial internal writes"
+    },
+    "expected": {
+      "stateEffects": "The whole semantic transaction rolls back, including graph and journal"
+    },
+    "expectedUnknowns": [
+      "Eventual success after storage recovery"
+    ],
+    "reviewExplanation": "An incomplete commit cannot appear as accepted research.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I28-late-model-response",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      28
+    ],
+    "testFile": "tests/project-scope.test.ts",
+    "testName": "a delayed model response remains bound to its original project after another tab selects a different project",
+    "beforeState": {
+      "projects": [
+        "A",
+        "B"
+      ],
+      "activeRun": "A request is pending"
+    },
+    "newMaterial": {
+      "action": "Select B while a controlled delayed A response finishes"
+    },
+    "expected": {
+      "stateEffects": "The answer is stored only with its A session/project; B remains unchanged"
+    },
+    "expectedUnknowns": [
+      "Live provider reliability"
+    ],
+    "reviewExplanation": "The fixture uses a controlled response and does not claim a live model test.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I30-publication-isolation",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      30
+    ],
+    "testFile": "tests/engine-domain.test.ts",
+    "testName": "publication is an exact selected snapshot; later private edits and sources do not change it",
+    "beforeState": {
+      "project": "one explicitly published revision and private source material"
+    },
+    "newMaterial": {
+      "action": "Admit another private result and revise the original claim privately"
+    },
+    "expected": {
+      "stateEffects": "Public snapshot remains unchanged; sources, new result and new revision remain private"
+    },
+    "expectedUnknowns": [
+      "Sensitive content detection is not automatic"
+    ],
+    "reviewExplanation": "Publication requires reviewing the exact selected text; admission does not publish.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I33-old-failure-retrieval",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      33
+    ],
+    "testFile": "tests/engine-domain.test.ts",
+    "testName": "next-session context retrieves an older relevant failed route despite many newer unrelated statements",
+    "beforeState": {
+      "project": "old relevant failure followed by many irrelevant admitted records"
+    },
+    "newMaterial": {
+      "action": "Request bounded context for the matching research question"
+    },
+    "expected": {
+      "stateEffects": "The relevant older failure is included and omissions are explicit"
+    },
+    "expectedUnknowns": [
+      "Semantic similarity beyond lexical/dependency retrieval"
+    ],
+    "reviewExplanation": "Filter and relevance selection happen before applying the context bound.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  },
+  {
+    "id": "I34-durable-restart",
+    "provenance": "Synthetic integration engineering fixture; not real researcher annotations",
+    "requirements": [
+      34
+    ],
+    "testFile": "tests/engine-cloud.test.ts",
+    "testName": "a persisted D1 engine commit survives request restart and conflicts cannot partially overwrite its journal",
+    "beforeState": {
+      "persistentStore": "D1 adapter with semantic engine records and exact revision references"
+    },
+    "newMaterial": {
+      "action": "Close/reconstruct request-local SQLite and attempt competing persisted writes"
+    },
+    "expected": {
+      "stateEffects": "The same records/references survive restart; conflict leaves no partial journal"
+    },
+    "expectedUnknowns": [
+      "Production latency or untested scale"
+    ],
+    "reviewExplanation": "This tests the real serialization boundary with a controlled D1 adapter.",
+    "execution": "Executed by the linked integration test, not by the pure-kernel fixture dispatcher. Consult actual test-run output for status."
+  }
+]

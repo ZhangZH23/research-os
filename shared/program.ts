@@ -25,6 +25,7 @@ export const goalInputSchema = z.object({
 });
 export type GoalInput = z.infer<typeof goalInputSchema>;
 export interface ResearchGoal extends GoalInput {
+  projectId?: string;
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export const contributionInputSchema = z.object({
 });
 export type ContributionInput = z.infer<typeof contributionInputSchema>;
 export interface ContributionAssessment extends ContributionInput {
+  projectId?: string;
   nodeId: string;
   updatedAt: string;
   basisUpdatedAt?: string;

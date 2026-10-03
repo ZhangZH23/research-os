@@ -28,7 +28,7 @@ import type { ResearchNode, ResearchState, NodeInput, EdgeInput, Status } from '
 import { STATUSES } from '../shared/types';
 import { belief } from '../shared/epistemics';
 import { Badge, TypeIcon, Modal, timeLabel } from './ui';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 export default function Inspector({
   id,
   state,
@@ -56,6 +56,7 @@ export default function Inspector({
   onAssess: () => void;
   onDiscuss: () => void;
 }) {
+  const api = useProjectApi();
   const [tab, setTab] = useState<'details' | 'belief' | 'history'>('details');
   const [expanded, setExpanded] = useState(false);
   const [showSource, setShowSource] = useState(false);

@@ -1,3 +1,5 @@
+import EngineWorkbench from './EngineWorkbench';
+import { ProjectSelector, useProjectScope } from './ProjectScope';
 import Program, { programNodeIds } from './Program';
 import ContributionEditor from './ContributionEditor';
 import ResearchChat from './ResearchChat';
@@ -50,13 +52,14 @@ import {
   type ActivityEvent,
 } from '../shared/types';
 import { belief, frontier } from '../shared/epistemics';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 import { Badge, TypeIcon, dateLabel, timeLabel } from './ui';
 import Graph from './Graph';
 import Inspector from './Inspector';
 import Ingest from './Ingest';
 import { NodeEditor, EdgeEditor } from './NodeEditor';
 const navigation = [
+  { id: 'engine', name: 'Research State', icon: GitBranch },
   { id: 'workbench', name: 'Research Notebook', icon: BookOpen },
   { id: 'program', name: 'Research Program', icon: Flag },
   { id: 'chat', name: 'Research Chat', icon: MessagesSquare },
@@ -71,10 +74,20 @@ const navigation = [
 ];
 const initialPage = () => {
   const hash = location.hash.slice(1);
-  return navigation.some((n) => n.id === hash) ? hash : 'workbench';
+  return navigation.some((n) => n.id === hash) ? hash : 'engine';
 };
 type EditState = { node?: ResearchNode; preset?: Partial<NodeInput>; link?: Partial<EdgeInput> };
 export default function App() {
+  const api = useProjectApi();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const { project } = useProjectScope();
+  const [engineSource, setEngineSource] = useState<string>();
   const [state, setState] = useState<ResearchState | null>(null);
   const canEdit = state?.canEdit === true;
   const [program, setProgram] = useState<ProgramState>({ goals: [], assessments: [] });
@@ -121,6 +134,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
   const navigate = useCallback((p: string) => {
+    if (!mounted.current) return;
     setPage(p);
     location.hash = p;
     setSearch('');
@@ -164,7 +178,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [canEdit]);
   useEffect(() => {
-    if (state && !canEdit && ['workbench', 'chat', 'ingest', 'activity'].includes(page))
+    if (state && !canEdit && ['engine', 'workbench', 'chat', 'ingest', 'activity'].includes(page))
       navigate('program');
   }, [state, canEdit, page, navigate]);
   const ranked = useMemo(() => (state ? frontier(state.nodes, state.edges) : []), [state]);
@@ -487,20 +501,14 @@ export default function App() {
             Research OS<small>YOUR RESEARCH, IN CONTEXT</small>
           </span>
         </button>
-        <div className="workspace-switch">
-          <div className="workspace-avatar">
-            <GitBranch size={19} />
-          </div>
-          <div>
-            <strong>Hidden Derivatives</strong>
-            <span>Research workspace</span>
-          </div>
-          <ChevronDown size={15} />
-        </div>
+        <ProjectSelector readOnly={!canEdit} />
         <p className="nav-label">WORKSPACE</p>
         <nav>
           {navigation
-            .filter((n) => canEdit || !['workbench', 'chat', 'ingest', 'activity'].includes(n.id))
+            .filter(
+              (n) =>
+                canEdit || !['engine', 'workbench', 'chat', 'ingest', 'activity'].includes(n.id),
+            )
             .map((n) => (
               <button
                 key={n.id}
@@ -520,7 +528,7 @@ export default function App() {
           <div className="local-mode">
             <Database size={16} />
             <div>
-              <strong>Public research workspace</strong>
+              <strong>{canEdit ? 'Private research project' : 'Published research'}</strong>
               <span>{canEdit ? 'Owner editing access' : 'Browse the research'}</span>
             </div>
             <i />
@@ -531,7 +539,7 @@ export default function App() {
               <strong>Researcher</strong>
               <span>{canEdit ? 'Workspace owner' : 'Public visitor'}</span>
             </div>
-            <span className="version">v0.3</span>
+            <span className="version">v0.4</span>
           </div>
         </div>
       </aside>
@@ -545,7 +553,7 @@ export default function App() {
             >
               <Menu size={20} />
             </button>
-            <span>Workspace</span>
+            <span>{project?.title ?? 'Published research'}</span>
             <ChevronRight size={13} />
             <strong>{search ? 'Search' : navigation.find((n) => n.id === page)?.name}</strong>
           </div>
@@ -583,7 +591,7 @@ export default function App() {
         <div className="public-access-banner">
           <span>
             {canEdit
-              ? 'Your research graph and goals are public. Editing and conversations are private to you.'
+              ? 'Research changes are private. Publish selected, fixed revisions from Research State → Publication.'
               : 'Public research · read-only. Explore the graph, goals, and contribution assessments.'}
           </span>
           {!canEdit && (
@@ -607,8 +615,19 @@ export default function App() {
                 {nodeRows(visible)}
               </section>
             </>
+          ) : page === 'engine' && canEdit ? (
+            <EngineWorkbench
+              onLegacyRefresh={refresh}
+              notify={notify}
+              initialSourceId={engineSource}
+              onSourceConsumed={() => setEngineSource(undefined)}
+            />
           ) : page === 'workbench' && canEdit ? (
             <Workbench
+              onProposeSource={(id) => {
+                setEngineSource(id);
+                navigate('engine');
+              }}
               state={state}
               program={program}
               onRefresh={refresh}
@@ -647,10 +666,12 @@ export default function App() {
                 <div>
                   <div className="project-kicker">
                     <span className="eyebrow">PROJECT OVERVIEW</span>
-                    <span className="project-tag">THEORETICAL COMPUTER SCIENCE</span>
+                    <span className="project-tag">RESEARCH PROJECT</span>
                   </div>
-                  <h1>Hidden derivatives</h1>
-                  <ResearchText className="research-summary">{state.project.title}</ResearchText>
+                  <h1>{state.project.title}</h1>
+                  <ResearchText className="research-summary">
+                    {state.project.description}
+                  </ResearchText>
                 </div>
                 <button className="button secondary" onClick={() => navigate('graph')}>
                   <Network size={16} />
@@ -660,10 +681,10 @@ export default function App() {
               <div className="demo-note">
                 <BookOpen size={14} />
                 <span>
-                  Illustrative research project. Elementary proofs, speculative extensions, and a
-                  deliberately flagged AI argument.
+                  This graph retains research items and historical labels. Inspect exact revisions,
+                  attributed reviews, and current proof routes in Research State.
                 </span>
-                <span className="demo-pill">DEMO</span>
+                <span className="demo-pill">RESEARCH RECORD</span>
               </div>
               <div className="stat-grid">
                 {[
@@ -993,7 +1014,10 @@ export default function App() {
                 <div>
                   <span className="eyebrow">WHAT TO INVESTIGATE NEXT</span>
                   <h1>Research Frontier</h1>
-                  <p>A transparent ranking of uncertainty, dependencies, and opportunity.</p>
+                  <p>
+                    A navigation heuristic based on uncertainty and dependencies. Scores do not
+                    measure truth, novelty, or proof strength.
+                  </p>
                 </div>
                 <button
                   data-owner-control
@@ -1056,7 +1080,7 @@ export default function App() {
                 <section className="panel ranked-panel">
                   <div className="panel-title">
                     <h2>Priority queue</h2>
-                    <span className="small muted">Deterministic ranking</span>
+                    <span className="small muted">Heuristic navigation ranking</span>
                   </div>
                   {ranked.map((r, i) => (
                     <article className="priority-item" key={r.node.id}>
@@ -1070,7 +1094,7 @@ export default function App() {
                         </button>
                         <div className="score">
                           <strong>{r.score}</strong>
-                          <span>PRIORITY</span>
+                          <span>HEURISTIC PRIORITY</span>
                         </div>
                       </div>
                       <div className="priority-body">
@@ -1167,7 +1191,7 @@ export default function App() {
             </span>
             <span>
               <Database size={12} />
-              Public research · cloud persistence
+              {canEdit ? 'Private project · explicit publication' : 'Published research snapshots'}
             </span>
           </footer>
         </main>

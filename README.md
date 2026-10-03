@@ -1,12 +1,12 @@
-# Research OS — public research workspace
+# Research OS — revision-aware mathematics research
 
-A mathematics and TCS research workspace with public browsing and owner-only editing with LaTeX rendering, a research graph, ultimate goals and subgoals, contribution assessments, and a private research notebook. AI proposals require review before application and never certify a proof.
+Research OS is a local-first workbench for mathematics and TCS projects: chat with GPT or import visible conversations, capture exact source passages, review proposed research changes, and inspect what changed. It maintains attributed, revision-aware research records and checks explicit invariants. It does not certify arbitrary mathematics, literature novelty, or publishability.
 
-## Try the platform
+**This GitHub version is the Research State Engine upgrade (0.4).** The [existing public website](https://research-os-zhangzh23.zzh19980830.chatgpt.site) remains on its previously deployed version. Pushing this repository does not deploy the website or migrate its research database.
 
-**[Open Research OS](https://research-os-zhangzh23.zzh19980830.chatgpt.site)** to browse the public research project. The owner's research notebook, GPT connection, and editing tools require owner sign-in.
+## Run the complete application locally
 
-To explore the complete notebook yourself, run an isolated local copy with Node.js 22.13+ and pnpm:
+Use Node.js 22.13+ and pnpm:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -14,40 +14,64 @@ pnpm db:local
 pnpm dev
 ```
 
-Open **http://localhost:4312**. This uses a separate local database and illustrative seed data; it does not connect to the owner's live research storage. Import a conversation to try manual review, or configure a local connection secret and your own API key to use GPT. The connection secret is described below.
+Open **http://localhost:4312**. The supported full application is the Worker preview, with a separate persistent local database under `.wrangler/`. `pnpm start` starts an already built preview. `pnpm launch` builds and starts it in the foreground; stop it with Ctrl+C. The older Express server remains available as `pnpm start:legacy` for compatibility testing; it does not provide the new Research State interface.
 
-## Online use
+No API key is needed to create projects, capture human observations, import conversations, propose/check/review/commit changes, inspect sources and routes, or export records. The illustrative legacy project has an explicit migration screen; a new private project starts empty and needs no legacy migration.
 
-Anyone can open the published Site to read the current research graph, goals, and contribution assessments. The owner signs in with ChatGPT to edit and use research chat. Drafts, conversation history, audit events, source transcripts, local file links, and connection credentials are excluded from public responses. Research edits and conversations persist in the cloud database. The original desktop workspace is a separate copy; it does not automatically synchronize with the online workspace.
+To chat with GPT, create an ignored `.dev.vars` containing `CONNECTION_SECRET="<32-byte base64 value>"`, restart, and choose **Connect GPT** in the notebook. Generate the secret locally with:
 
-Select **Connect GPT** in the Research Notebook to add an OpenAI API key. The key is encrypted server-side into a Secure, HttpOnly, user-bound browser cookie. It is never stored in the research database or source repository. Remembered connections expire after 30 days; session connections expire within 24 hours. Without a key, the graph, program, review flows, and clearly labeled planning worksheets remain available.
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
 
-## Research Notebook
+Supply your own OpenAI API key through the connection dialog. Keys are encrypted into a user-bound HttpOnly cookie and excluded from research storage, exports, and this repository. Model usage may incur API charges. Without a configured key, local planning worksheets are explicitly labeled and are never presented as GPT output.
 
-The owner starts in the notebook: choose a goal, state what progress would mean, and send a prompt to GPT. Paste labeled ChatGPT conversations through **Import conversation** to use the same review flow. Complete visible replies, prompt drafts, private notes, and result reviews persist independently of the public research graph.
+## The research workflow
 
-Each candidate records an exact source quote, statement and assumptions, baseline, proposed gain, mechanism, evidence, unresolved gap, and next decisive check. GPT only suggests candidates. The researcher classifies them as an advance, useful partial result, reformulation, or rejection, with a recorded reason and independent check. **Session review** compares prompts and their actual project effects.
+1. Create a private project and specify its goal. Each tab retains its own selected project.
+2. Capture a human note, import a conversation, or select **Propose research change** on a notebook reply. Source text stays exact, including LaTeX, Unicode, and line endings.
+3. In **Research State**, propose a statement, revision, evidence attachment, route, obligation, failed attempt, or methodological assessment. Ordinary contract fields have form controls; advanced expressions have a structured editor.
+4. Inspect the original passage beside the proposed effect. Run deterministic checks, record a reasoned admission review, then commit. A warning can accompany a useful restricted result; admission does not establish the general goal.
+5. Inspect immutable revisions, evidence, attributed reviews, AND/OR routes, current support explanations, and the committed **Research diff**. New statements do not inherit old proof reviews.
+6. Resume research with bounded context containing exact revisions, constraints, relevant earlier failures, and an included/omitted manifest. Notebook requests retain separate run records and visible outputs; imported runs retain unverified execution attribution.
+7. Publish only an explicitly previewed selection. Publication is separate from private admission and proof endorsement. Later private changes leave the public snapshot fixed.
 
-Reviewing stays private. Adding a reviewed result to the public project requires an explicit checkbox; the new graph item remains mathematically unverified. Restatements and routine consequences cannot count as nontrivial advances. Exact repeated statements cannot be integrated twice. These are conservative checks, not a semantic equivalence, proof, or literature novelty oracle. Goal, premise, and integrated-result edits invalidate current progress counts until re-examined. Historical source text and reviews are retained.
+The existing notebook, graph, LaTeX renderer, contribution reviews, and session history remain available. Descriptive relationships are distinct from actual inference premises. Goal satisfaction requires an attributed criterion-to-result mapping, rather than counting admitted candidates.
 
-Without a configured API key, import and manual review work; the notebook never presents a local worksheet as a GPT reply. Model context includes selected research, recent exchanges, and bounded recorded reviews; it is not unlimited memory. Local preview enables an owner test mode only on localhost with an explicit environment flag, never on public hosts.
+## Preserve existing work
 
-## Development
+Download a private backup before migrating. **Research State → Download private backup → Migrate this project locally** performs additive, resumable chunks. Original records remain; unavailable history is not invented. Existing public material is frozen once as a legacy snapshot, while later revisions and new projects remain private.
 
-Use Node.js 22.13 or newer and pnpm. Install dependencies with `pnpm install`, initialize the local cloud database with `pnpm db:local`, and run `pnpm dev`. The preview runs on port 4312. `pnpm check` checks types; `pnpm test` runs the regression suite; `pnpm build` produces the client and Worker bundle.
+The maintenance command accepts only a local preview address:
 
-Local preview uses a separate database under `.wrangler/`. Production uses the Sites-managed D1 binding named `DB`. Generate schema migrations with `pnpm db:generate`; production applies the generated migrations during deployment. Do not alter production schemas in request handlers.
+```sh
+pnpm engine:migrate                             # dry-run report
+pnpm engine:migrate --apply --backup /absolute/path/research-backup.json
+```
 
-## Deployment
+Add `--project PROJECT_ID` for a selected project. A backup file is created with exclusive creation before applying any chunk. Keep private backups outside the public repository. Private project import creates a separate private project with remapped identities and downgraded imported review/check trust. It does not overwrite existing research or authenticate imported execution. See [migration and compatibility details](docs/MIGRATIONS.md) for size limits and recovery.
 
-This checkout is registered to the Site in `.openai/hosting.json`. The Sites workflow builds the app, pushes the exact source commit, packages the Worker and assets, and deploys a version to the existing Site. The Site audience is public; server authorization separately restricts private features and all writes. Runtime configuration is managed through Sites, never committed to the manifest.
+## Validation and limitations
 
-For local GPT connections, create an ignored `.dev.vars` file containing `CONNECTION_SECRET="<32-byte base64 value>"`. Generate a value with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`, save it locally, and restart the preview. Then choose **Connect GPT** in the app. Do not commit `.dev.vars` or API keys.
+```sh
+pnpm check
+pnpm test
+pnpm build
+pnpm test:cloud
+pnpm engine:scale --size=1200 --out=/tmp/research-scale.json
+pnpm engine:evaluate --out=/tmp/research-evaluation.json
+```
 
-`CONNECTION_SECRET` is a secret 32-byte base64 encryption key. Preserve it across deployments to retain existing browser connections. `WORKSPACE_OWNER_EMAIL` is configured from the verified owner entry in the Sites access policy. Server authorization requires both a dispatch-authenticated user ID and the exact owner email. These headers are trusted only behind Sites dispatch. Missing owner configuration denies editing to everyone. The one-time import endpoint was removed after the workspace transfer.
+With the local preview running, `node --import tsx scripts/engine-acceptance.ts` runs the synthetic HTTP acceptance workflow and records a restart fingerprint. Restart the preview and run `node --import tsx scripts/engine-acceptance.ts --verify test-results/engine-acceptance.json` to verify durability. These scripts create clearly labeled synthetic private projects locally.
 
-## Persistence and concurrency
+See the [implementation record and actual validation](docs/ENGINE_UPGRADE.md), [twelve-step UI walkthrough](docs/ENGINE_DEMO.md), [semantics and trust boundaries](docs/ENGINE_SEMANTICS.md), [supported checkers](docs/CHECKERS.md), and [evaluation protocol](docs/EVALUATION.md).
 
-The existing domain rules run in a request-local SQLite WASM engine with real foreign keys, uniqueness constraints, transactions, and savepoints. D1 stores individual research records. Each write uses an atomic revision comparison and guards every changed row, rejecting conflicting tabs without overwriting their changes. Long model calls save the prompt first and reload current research before appending the reply. Distributed leases prevent concurrent sends within one conversation; reply recovery handles committed writes whose network acknowledgement was lost.
+The checks cover declared scope changes, quantifier/construction differences, a bounded runtime-expression fragment, exact textual repetition, source spans, and an allowlisted finite prime-field matrix-rank computation. Missing information remains unknown. Human endorsements remain human judgments. There is no arbitrary-code runner, autonomous multi-day agent, universal proof checker, or literature-novelty oracle. Live A/B/C model evaluation is **not_run**; synthetic fixtures and mocked responses do not demonstrate researcher productivity or model superiority.
 
-This is a personal research workspace, with a public shared graph and server-enforced owner authorization for editing. Multi-user workspaces would require a separate authorization design. Individual saves are bounded to 850 changed records and individual records to 1.8 MB. Live model behavior requires a configured API key; automated tests use controlled model responses.
+## Storage and hosting
+
+The Worker reconstructs the domain in request-local SQLite, then saves individual records to D1 with atomic revision comparison. Semantic proposal read sets and storage CAS are independent safeguards. Saves remain bounded to 850 changed records and 1.8 MB per record; migration uses smaller resumable batches. Requests are limited to 1 MB. Whole-workspace loading remains a scaling cost, documented in the measured benchmark.
+
+The public read API uses frozen publication DTOs; notebook conversations, drafts, source artifacts, private reviews, and credentials require owner access. Project scoping is separate from authorization. The local owner preview flag is effective only on loopback addresses. Hosted editing requires Sites dispatch authentication and the configured owner identity. This remains a personal research workspace; sharing a public snapshot is not multi-user editing.
+
+The existing Sites hosting configuration is retained. Deployment is a separate action: review the source, back up the target workspace, preserve its connection secret and owner configuration, deploy through the existing hosting workflow, then explicitly migrate the target project. No hosted deployment or production migration is performed by these local commands.

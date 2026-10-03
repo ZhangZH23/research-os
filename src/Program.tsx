@@ -30,7 +30,7 @@ import { programNodeIds } from '../shared/program-scope';
 import ResearchText from './ResearchText';
 import MathEditor from './MathEditor';
 import { Modal, Badge, TypeIcon } from './ui';
-import { api } from './api';
+import { useProjectApi } from './ProjectScope';
 import './program.css';
 
 export { programNodeIds } from '../shared/program-scope';
@@ -608,6 +608,7 @@ function GoalEditor({
   onClose: () => void;
   onSaved: (goal: ResearchGoal) => Promise<void>;
 }) {
+  const api = useProjectApi();
   const [form, setForm] = useState<GoalInput>(
     goal ?? {
       title: '',

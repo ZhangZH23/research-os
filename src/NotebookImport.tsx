@@ -82,7 +82,15 @@ export default function NotebookImport({
         <button
           className="button primary"
           disabled={busy || !parsed.turns.length || !title.trim()}
-          onClick={() => onImport({ title, source, goalId: goalId || null, turns: parsed.turns })}
+          onClick={() =>
+            onImport({
+              title,
+              source,
+              goalId: goalId || null,
+              turns: parsed.turns,
+              originalTranscript: text,
+            })
+          }
         >
           Import into notebook
         </button>
